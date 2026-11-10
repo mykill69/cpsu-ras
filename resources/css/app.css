@@ -1,0 +1,25 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+    body {
+        @apply antialiased;
+    }
+}
+
+@layer components {
+    .card-hover {
+        @apply transition-all duration-300 ease-in-out;
+    }
+    
+    .card-hover:hover {
+        @apply transform -translate-y-1 shadow-lg;
+    }
+}
+
+@layer utilities {
+    .animate-spin-slow {
+        animation: spin 3s linear infinite;
+    }
+}
