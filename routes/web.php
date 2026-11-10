@@ -12,9 +12,14 @@ use App\Http\Controllers\BackupController;
 Route::middleware(['auth', 'verified'])->group(function () {
     
     // Dashboard
-    Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
-    Route::get('/dashboard', [DashboardController::class, 'index']);
-    Route::get('/dashboard/stats', [DashboardController::class, 'stats'])->name('dashboard.stats');
+    // Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    // Route::get('/dashboard', [DashboardController::class, 'index']);
+    // Route::get('/dashboard/stats', [DashboardController::class, 'stats'])->name('dashboard.stats');
+    Route::get('/dashboard', [DashboardController::class, 'index'])
+    ->name('dashboard');
+
+    Route::get('/dashboard/stats', [DashboardController::class, 'stats'])
+        ->name('dashboard.stats');
     
     // Drive - Main file management
     Route::prefix('drive')->name('drive.')->group(function () {
