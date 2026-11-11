@@ -32,6 +32,10 @@ class Turnstile
             return false;
         }
 
+        if (self::usingTestKeys() && app()->environment('production')) {
+            Log::critical('Turnstile is using Cloudflare TEST keys in production: replace TURNSTILE_SITE_KEY / TURNSTILE_SECRET_KEY in .env.');
+        }
+
         try {
             $response = Http::asForm()
                 ->timeout(8)
@@ -52,6 +56,32 @@ class Turnstile
             return false;
         }
 
+        // A valid token must also have been issued for this form and this site,
+        // so a token solved on another page or domain can't be replayed here.
+        if (! self::usingTestKeys()) {
+            $expectedHost = parse_url(config('app.url'), PHP_URL_HOST);
+
+            if ($response->json('action') !== 'login'
+                || ($expectedHost && strcasecmp((string) $response->json('hostname'), $expectedHost) !== 0)) {
+                Log::warning('Turnstile token for wrong action/host', [
+                    'action' => $response->json('action'),
+                    'hostname' => $response->json('hostname'),
+                ]);
+
+                return false;
+            }
+        }
+
         return true;
+    }
+
+    /**
+     * Cloudflare's test keys (1x…, 2x…, 3x…) pass or fail without checking
+     * anyone. They must never be used on the live site.
+     */
+    public static function usingTestKeys(): bool
+    {
+        return (bool) preg_match('/^[123]x0{10}/', (string) config('services.turnstile.site_key'))
+            || (bool) preg_match('/^[123]x0{10}/', (string) config('services.turnstile.secret_key'));
     }
 }
