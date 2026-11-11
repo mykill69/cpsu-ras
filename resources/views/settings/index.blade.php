@@ -196,7 +196,7 @@
                 const csrf = document.querySelector('meta[name="csrf-token"]').content;
                 
                 try {
-                    const response = await fetch('/settings/toggle-maintenance', {
+                    const response = await fetch(@json(parse_url(route('settings.toggle-maintenance'), PHP_URL_PATH)), {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
@@ -244,7 +244,7 @@
                 const csrf = document.querySelector('meta[name="csrf-token"]').content;
                 
                 try {
-                    const response = await fetch('/settings', {
+                    const response = await fetch(@json(parse_url(route('settings.update'), PHP_URL_PATH)), {
                         method: 'PUT',
                         headers: {
                             'Content-Type': 'application/json',
@@ -286,7 +286,7 @@
                 const csrf = document.querySelector('meta[name="csrf-token"]').content;
                 
                 try {
-                    const response = await fetch('/settings/clear-cache', {
+                    const response = await fetch(@json(parse_url(route('settings.clear-cache'), PHP_URL_PATH)), {
                         method: 'POST',
                         headers: {
                             'X-CSRF-TOKEN': csrf,

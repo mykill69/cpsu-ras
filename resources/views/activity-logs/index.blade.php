@@ -279,7 +279,7 @@
 
         async viewDetails(activityId) {
             try {
-                const response = await fetch('/activity-logs/' + activityId, {
+                const response = await fetch(@json(parse_url(url('/activity-logs'), PHP_URL_PATH)) + '/' + activityId, {
                     headers: {
                         'X-Requested-With': 'XMLHttpRequest',
                         'Accept': 'application/json',
@@ -325,7 +325,7 @@
             if (result.isConfirmed) {
                 const csrf = document.querySelector('meta[name="csrf-token"]').content;
                 try {
-                    const response = await fetch('/activity-logs/' + activityId, {
+                    const response = await fetch(@json(parse_url(url('/activity-logs'), PHP_URL_PATH)) + '/' + activityId, {
                         method: 'DELETE',
                         headers: {
                             'X-CSRF-TOKEN': csrf,
@@ -371,7 +371,7 @@
             if (result.isConfirmed) {
                 const csrf = document.querySelector('meta[name="csrf-token"]').content;
                 try {
-                    const response = await fetch('/activity-logs/clear-all', {
+                    const response = await fetch(@json(parse_url(route('activity-logs.clear-all'), PHP_URL_PATH)), {
                         method: 'POST',
                         headers: {
                             'X-CSRF-TOKEN': csrf,

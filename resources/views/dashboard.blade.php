@@ -147,7 +147,7 @@
                                         </p>
                                     </div>
                                     <div>
-                                        <a :href="'/drive/download/' + file.id" @click.stop
+                                        <a :href="driveBaseUrl + '/download/' + file.id" @click.stop
                                             class="text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-500">
                                             Download
                                         </a>
@@ -321,6 +321,9 @@
                         recent_activities: @json($stats['recent_activities']),
                     },
 
+                    driveBaseUrl: @json(parse_url(url('/drive'), PHP_URL_PATH)),
+                    statsUrl: @json(parse_url(route('dashboard.stats'), PHP_URL_PATH)),
+
                     async init() {
                         // Auto-refresh every 30 seconds
                         setInterval(() => this.refreshData(), 30000);
@@ -328,7 +331,7 @@
 
                     async refreshData() {
                         try {
-                            const response = await fetch('/dashboard/stats');
+                            const response = await fetch(this.statsUrl);
                             const data = await response.json();
                             this.stats = data;
                         } catch (error) {

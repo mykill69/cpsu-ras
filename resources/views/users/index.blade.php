@@ -295,7 +295,7 @@
         if (result.isConfirmed) {
             const csrf = document.querySelector('meta[name="csrf-token"]').content;
             try {
-                const response = await fetch('/users/' + userId, {
+                const response = await fetch(@json(parse_url(url('/users'), PHP_URL_PATH)) + '/' + userId, {
                     method: 'DELETE',
                     headers: {
                         'X-CSRF-TOKEN': csrf,
