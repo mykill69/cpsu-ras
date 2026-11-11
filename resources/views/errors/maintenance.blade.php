@@ -9,7 +9,7 @@
     <link rel="shortcut icon" href="{{ asset('images/cpsu-logo.png') }}" type="image/x-icon">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
-<body class="h-full bg-gradient-to-br from-primary-50 via-white to-gold-50">
+<body class="h-full bg-paper">
     <div class="min-h-screen flex items-center justify-center p-4">
         <div class="bg-white rounded-2xl shadow-xl max-w-md w-full p-8 text-center">
             <div class="w-20 h-20 bg-red-100 rounded-2xl flex items-center justify-center mx-auto mb-6">

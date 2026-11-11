@@ -64,20 +64,20 @@
                 <div class="p-5 sm:p-6">
                     <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5">
                         <div class="flex items-center gap-4 min-w-0">
-                            <div class="hidden sm:flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-primary-500 to-primary-700 flex-shrink-0 shadow-lg">
-                                <svg class="w-7 h-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <div class="hidden sm:flex items-center justify-center w-12 h-12 rounded-xl bg-primary-50 text-primary-700 ring-1 ring-primary-100 flex-shrink-0">
+                                <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
                                 </svg>
                             </div>
                             <div class="min-w-0">
                                 <h1 class="text-2xl sm:text-3xl font-bold text-primary-900 truncate" x-text="currentFolder ? currentFolder.name : 'My Drive'">My Drive</h1>
                                 <div class="flex items-center gap-2 mt-1.5">
-                                    <span class="inline-flex items-center text-xs font-medium text-primary-600 bg-primary-50 rounded-full px-3 py-1">
-                                        <span x-text="folders.length"></span> folders
+                                    <span class="inline-flex items-center gap-1 text-xs font-medium text-gray-600 bg-gray-100 rounded-full px-2.5 py-0.5 tabular">
+                                        <span x-text="baseFolders.length"></span> <span x-text="baseFolders.length === 1 ? 'folder' : 'folders'"></span>
                                     </span>
                                     <span class="text-primary-300">·</span>
-                                    <span class="inline-flex items-center text-xs font-medium text-primary-600 bg-primary-50 rounded-full px-3 py-1">
-                                        <span x-text="files.length"></span> files
+                                    <span class="inline-flex items-center gap-1 text-xs font-medium text-gray-600 bg-gray-100 rounded-full px-2.5 py-0.5 tabular">
+                                        <span x-text="baseFiles.length"></span> <span x-text="baseFiles.length === 1 ? 'file' : 'files'"></span>
                                     </span>
                                 </div>
                             </div>
@@ -85,21 +85,21 @@
 
                         <div class="flex flex-wrap items-center gap-3">
                             <button @click="showCreateFolder = true"
-                                class="inline-flex items-center gap-2 px-4 py-2.5 bg-white border-2 border-primary-200 rounded-xl text-sm font-semibold text-primary-700 hover:bg-primary-50 hover:border-primary-300 hover:shadow-md transition-all duration-200 whitespace-nowrap">
+                                class="btn-secondary whitespace-nowrap">
                                 <svg class="w-4 h-4 text-gold-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                                 </svg>
                                 New Folder
                             </button>
                             <button @click="$refs.fileInput.click()"
-                                class="inline-flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-gold-500 to-gold-600 hover:from-gold-600 hover:to-gold-700 rounded-xl text-sm font-semibold text-primary-900 shadow-md hover:shadow-lg transition-all duration-200 whitespace-nowrap">
+                                class="btn-primary whitespace-nowrap">
                                 <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
                                 </svg>
                                 Upload Files
                             </button>
                             <button @click="$refs.folderInput.click()"
-                                class="inline-flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 rounded-xl text-sm font-semibold text-white shadow-md hover:shadow-lg transition-all duration-200 whitespace-nowrap">
+                                class="btn-secondary whitespace-nowrap">
                                 <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4.5v15m7.5-7.5h-15" />
                                 </svg>
@@ -108,7 +108,54 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- Search -->
+                <div class="border-t border-gray-100 bg-gray-50/60 px-5 py-3 sm:px-6">
+                    <form role="search" @submit.prevent="runSearch(true)" class="relative">
+                        <label for="drive-search" class="sr-only">Search</label>
+                        <svg class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+                        </svg>
+                        <input id="drive-search" x-ref="searchInput" type="search" autocomplete="off" spellcheck="false"
+                            x-model="searchQuery" @input.debounce.300ms="runSearch()" @keydown.escape="clearSearch()"
+                            :placeholder="currentFolder ? 'Search files and folders in ' + currentFolder.name : 'Search folders and files in My Drive'"
+                            class="block w-full rounded-lg border-gray-300 bg-white py-2 pl-9 pr-24 text-sm text-gray-900 placeholder-gray-400 shadow-sm focus:border-primary-600 focus:ring-primary-600 [&::-webkit-search-cancel-button]:hidden">
+                        <div class="absolute inset-y-0 right-2 flex items-center gap-1.5">
+                            <svg x-show="searchLoading" x-cloak class="h-4 w-4 animate-spin text-gray-400" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-opacity=".25" stroke-width="3" />
+                                <path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" stroke-width="3" stroke-linecap="round" />
+                            </svg>
+                            <button type="button" x-show="searchQuery" x-cloak @click="clearSearch()"
+                                class="rounded px-1.5 py-0.5 text-xs font-medium text-gray-500 hover:bg-gray-100 hover:text-gray-900">Clear</button>
+                            <kbd x-show="!searchQuery" class="hidden rounded border border-gray-200 bg-gray-50 px-1.5 font-sans text-[11px] text-gray-400 sm:inline">/</kbd>
+                        </div>
+                    </form>
+                </div>
             </div>
+        </div>
+
+        <!-- Search status -->
+        <div x-show="searchActive" x-cloak class="mb-5 flex flex-wrap items-baseline justify-between gap-2">
+            <p class="text-sm text-gray-600" aria-live="polite">
+                <template x-if="!searchLoading">
+                    <span>
+                        <span class="font-medium text-gray-900 tabular" x-text="folders.length + files.length"></span>
+                        <span x-text="(folders.length + files.length) === 1 ? 'result' : 'results'"></span>
+                        for <span class="font-medium text-gray-900" x-text="'“' + searchedFor + '”'"></span>
+                        in <span x-text="currentFolder ? currentFolder.name + ' and its subfolders' : 'all of My Drive'"></span>
+                        <span x-show="searchTruncated" class="text-gray-500">(showing the first matches; refine your search to narrow it down)</span>
+                    </span>
+                </template>
+                <template x-if="searchLoading"><span>Searching…</span></template>
+            </p>
+            <button type="button" @click="clearSearch()" class="text-sm font-medium text-primary-700 hover:underline">Back to folder</button>
+        </div>
+
+        <!-- No results -->
+        <div x-show="searchActive && !searchLoading && folders.length === 0 && files.length === 0" x-cloak
+            class="panel px-6 py-14 text-center">
+            <p class="text-sm font-medium text-gray-900">No folders or files match “<span x-text="searchedFor"></span>”</p>
+            <p class="mt-1 text-sm text-gray-500">Check the spelling, or try part of the name, e.g. a year or a document number.</p>
         </div>
 
         <!-- Hidden File Inputs -->
@@ -116,10 +163,10 @@
         <input type="file" x-ref="folderInput" @change="handleFolderSelect($event)" class="hidden" webkitdirectory multiple>
 
         <!-- Empty State -->
-        <div x-show="folders.length === 0 && files.length === 0 && !isDragging" x-cloak style="display: none;">
+        <div x-show="folders.length === 0 && files.length === 0 && !isDragging && !searchActive" x-cloak style="display: none;">
             <div class="text-center py-20">
                 <div class="relative inline-flex items-center justify-center mb-8">
-                    <div class="w-32 h-32 bg-gradient-to-br from-primary-100 to-gold-100 rounded-3xl flex items-center justify-center shadow-lg">
+                    <div class="w-32 h-32 bg-primary-50 rounded-3xl flex items-center justify-center shadow-lg">
                         <svg class="w-16 h-16 text-primary-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-8.69-6.44l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z" />
                         </svg>
@@ -130,10 +177,10 @@
                     You can drag and drop individual files or entire folders directly into this window.
                 </p>
                 <div class="flex flex-wrap justify-center gap-4">
-                    <button @click="$refs.fileInput.click()" class="inline-flex items-center gap-2 px-6 py-3.5 bg-gradient-to-r from-gold-500 to-gold-600 hover:from-gold-600 hover:to-gold-700 rounded-xl text-sm font-semibold text-primary-900 transition-all duration-200 shadow-md hover:shadow-lg transform hover:scale-105">
+                    <button @click="$refs.fileInput.click()" class="inline-flex items-center gap-2 px-6 py-3.5 bg-primary-700 hover:bg-primary-800 rounded-lg text-sm font-medium text-white transition-all duration-200 shadow-md hover:shadow-lg transform hover:scale-105">
                         Choose Files
                     </button>
-                    <button @click="$refs.folderInput.click()" class="inline-flex items-center gap-2 px-6 py-3.5 bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 rounded-xl text-sm font-semibold text-white transition-all duration-200 shadow-md hover:shadow-lg transform hover:scale-105">
+                    <button @click="$refs.folderInput.click()" class="inline-flex items-center gap-2 px-6 py-3.5 bg-primary-600 hover:bg-primary-700 rounded-xl text-sm font-semibold text-white transition-all duration-200 shadow-md hover:shadow-lg transform hover:scale-105">
                         Choose Folder
                     </button>
                 </div>
@@ -175,13 +222,20 @@
                                 </button>
                             </div>
                         </div>
-                        <div class="h-1" :style="'background-color: ' + (folder.color || '#1a5632')"></div>
                         <div class="p-4">
-                            <svg class="w-10 h-10 mb-3" :style="'color: ' + (folder.color || '#1a5632')" fill="currentColor" viewBox="0 0 24 24">
-                                <path d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z" />
-                            </svg>
-                            <h3 class="text-sm font-medium text-primary-900 truncate mb-1" x-text="folder.name"></h3>
-                            <p class="text-xs text-primary-400" x-text="new Date(folder.created_at).toLocaleDateString()"></p>
+                            <div class="relative mb-3 w-fit">
+                                <svg class="w-10 h-10" :style="'color: ' + (folder.color || '#2F5C42')" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                    <path d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z" />
+                                </svg>
+                                <span x-show="itemCount(folder) > 0"
+                                    class="absolute -right-2 -top-1.5 min-w-[20px] rounded-full bg-white px-1.5 text-center text-[11px] font-semibold leading-5 text-gray-800 shadow-sm ring-1 ring-gray-200 tabular"
+                                    :title="itemCount(folder) + ' item(s) inside'"
+                                    x-text="itemCount(folder) > 999 ? '999+' : itemCount(folder)"></span>
+                            </div>
+                            <h3 class="text-sm font-medium text-gray-900 truncate" :title="folder.name" x-text="folder.name"></h3>
+                            <p class="mt-1 truncate text-xs text-gray-500 tabular" x-text="folderSummary(folder)"></p>
+                            <p x-show="searchActive" class="mt-1 truncate text-[11px] text-gray-400"
+                                :title="'In ' + locationLabel(folder)" x-text="'In ' + locationLabel(folder)"></p>
                         </div>
                     </div>
                 </template>
@@ -204,7 +258,7 @@
                         <!-- Sync Status Badge -->
                         <div style="position: absolute; top: 8px; left: 8px; z-index: 20;">
                             <template x-if="file.status === 'synced'">
-                                <span class="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
+                                <span class="inline-flex items-center gap-1 rounded-full bg-white/95 px-2 py-0.5 text-[11px] font-medium text-primary-700 shadow-sm ring-1 ring-gray-200">
                                     <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
                                         <path d="M5.5 16a3.5 3.5 0 01-.369-6.98 4 4 0 117.753-1.977A4.5 4.5 0 1113.5 16h-8z" />
                                     </svg>
@@ -212,7 +266,7 @@
                                 </span>
                             </template>
                             <template x-if="file.status !== 'synced'">
-                                <span class="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
+                                <span class="inline-flex items-center gap-1 rounded-full bg-white/95 px-2 py-0.5 text-[11px] font-medium text-gray-600 shadow-sm ring-1 ring-gray-200">
                                     <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
                                         <path fill-rule="evenodd" d="M3 5a2 2 0 012-2h10a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V5zm11 1H6v8h8V6z" clip-rule="evenodd" />
                                     </svg>
@@ -268,32 +322,27 @@
                             </div>
                         </div>
 
-                        <!-- File Preview -->
-                        <div class="aspect-w-16 aspect-h-12 bg-gradient-to-br from-primary-50 to-primary-100 flex items-center justify-center">
-                            <template x-if="file.mime_type && file.mime_type.startsWith('image/') && file.status !== 'synced'">
-                                <img :src="baseUrl + '/thumbnail/' + file.uuid" :alt="file.original_name" class="object-cover w-full h-full">
+                        <!-- File Preview: type tile underneath, real thumbnail layered on top when available -->
+                        <div class="relative aspect-[4/3] overflow-hidden border-b border-gray-100 bg-gray-50">
+                            <div class="absolute inset-0 flex flex-col items-center justify-center gap-2 pt-6">
+                                <template x-if="file.status === 'synced'">
+                                    <svg class="h-8 w-8 text-primary-600" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15a4.5 4.5 0 0 0 4.5 4.5H18a3.75 3.75 0 0 0 1.332-7.257 3 3 0 0 0-3.758-3.848 5.25 5.25 0 0 0-10.233 2.33A4.502 4.502 0 0 0 2.25 15Z" />
+                                    </svg>
+                                </template>
+                                <span class="rounded px-2 py-1 font-mono text-xs font-medium uppercase"
+                                    :class="typeClass(file)" x-text="(file.extension || 'file').slice(0, 5)"></span>
+                                <span x-show="file.status === 'synced'" class="text-[11px] text-gray-500">On Google Drive</span>
+                            </div>
+
+                            <template x-if="isImage(file) && file.status !== 'synced'">
+                                <img :src="baseUrl + '/thumbnail/' + file.uuid" alt="" loading="lazy" decoding="async"
+                                    class="absolute inset-0 h-full w-full bg-gray-50 object-cover"
+                                    x-on:error="$el.remove()">
                             </template>
-                            <template x-if="!file.mime_type || !file.mime_type.startsWith('image/') || file.status === 'synced'">
-                                <div class="text-center p-4">
-                                    <div class="w-12 h-12 mx-auto mb-2 rounded-xl bg-white shadow-sm flex items-center justify-center">
-                                        <template x-if="file.status === 'synced'">
-                                            <svg class="w-6 h-6 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                                            </svg>
-                                        </template>
-                                        <template x-if="file.status !== 'synced' && file.mime_type === 'application/pdf'">
-                                            <svg class="w-6 h-6 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                                            </svg>
-                                        </template>
-                                        <template x-if="file.status !== 'synced' && (!file.mime_type || (file.mime_type !== 'application/pdf' && !file.mime_type.startsWith('image/')))">
-                                            <svg class="w-6 h-6 text-primary-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                            </svg>
-                                        </template>
-                                    </div>
-                                    <p class="text-xs text-primary-500 uppercase font-medium" x-text="file.extension"></p>
-                                </div>
+                            <template x-if="isPdf(file) && file.status !== 'synced'">
+                                <canvas x-pdf-thumb="baseUrl + '/stream/' + file.uuid"
+                                    class="absolute inset-0 h-full w-full bg-white object-cover object-top opacity-0 transition-opacity duration-300"></canvas>
                             </template>
                         </div>
 
@@ -302,6 +351,8 @@
                             <div class="flex items-center justify-between">
                                 <p class="text-xs text-primary-400" x-text="file.formatted_size"></p>
                             </div>
+                            <p x-show="searchActive" class="mt-1 truncate text-[11px] text-gray-400"
+                                :title="'In ' + locationLabel(file)" x-text="'In ' + locationLabel(file)"></p>
                         </div>
                     </div>
                 </template>
@@ -312,29 +363,21 @@
         @include('drive.partials.create-folder-modal')
 
         <!-- Upload Progress -->
-        <div x-show="uploading" x-cloak
-            class="fixed bottom-6 right-6 z-50 bg-white rounded-2xl shadow-2xl p-5 w-80 border border-primary-100"
-            x-transition>
-            <div class="flex items-center justify-between mb-3">
-                <div>
-                    <h3 class="text-sm font-semibold text-primary-900">
-                        Uploading <span x-text="uploadStats.current + '/' + uploadStats.total"></span> files
-                    </h3>
-                    <p class="text-xs text-primary-500 mt-0.5" x-text="uploadStats.currentFile"></p>
+        <div x-show="uploading" x-cloak x-transition.opacity role="status" aria-live="polite"
+            class="fixed bottom-4 right-4 z-50 w-[min(22rem,calc(100vw-2rem))] rounded-xl border border-gray-200 bg-white p-4 shadow-lg">
+            <div class="flex items-start justify-between gap-3">
+                <div class="min-w-0">
+                    <p class="text-sm font-medium text-gray-900">
+                        Uploading <span class="tabular" x-text="uploadStats.current + ' of ' + uploadStats.total"></span> files
+                    </p>
+                    <p class="mt-0.5 truncate text-xs text-gray-500" x-text="uploadStats.currentFile"></p>
                 </div>
-                <button @click="cancelUpload" class="text-primary-400 hover:text-primary-600 transition-colors">
-                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                </button>
+                <button type="button" @click="cancelUpload" class="btn-ghost -mr-1.5 -mt-1 px-2 py-1 text-xs">Cancel</button>
             </div>
-            <div class="w-full bg-primary-100 rounded-full h-2.5 mb-2 overflow-hidden">
-                <div class="bg-gradient-to-r from-primary-600 to-gold-500 h-2.5 rounded-full transition-all duration-500 relative"
-                    :style="'width: ' + uploadProgress + '%'">
-                    <div class="absolute inset-0 bg-white/20 animate-pulse"></div>
-                </div>
+            <div class="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-gray-100">
+                <div class="h-full rounded-full bg-primary-600 transition-[width] duration-300" :style="'width: ' + uploadProgress + '%'"></div>
             </div>
-            <p class="text-xs text-primary-500" x-text="uploadProgress + '% complete'"></p>
+            <p class="mt-1.5 text-xs text-gray-500 tabular" x-text="uploadProgress + '%'"></p>
         </div>
     </div>
 
@@ -348,6 +391,8 @@
                     newFolderName: '',
                     newFolderColor: '#1a5632',
                     uploading: false,
+                    cancelled: false,
+                    currentXhr: null,
                     uploadProgress: 0,
                     uploadStats: {
                         current: 0,
@@ -357,6 +402,15 @@
                     currentFolder: @json($currentFolder ?? null),
                     folders: @json($folders->items()),
                     files: @json($files->items()),
+                    // The folder's own contents; folders/files are swapped for results while searching
+                    baseFolders: [],
+                    baseFiles: [],
+                    searchQuery: new URLSearchParams(window.location.search).get('q') || '',
+                    searchedFor: '',
+                    searchActive: false,
+                    searchLoading: false,
+                    searchTruncated: false,
+                    searchController: null,
                     breadcrumbs: @json($breadcrumbs ?? []),
 
                     // Base path generated by Laravel so it works locally AND when hosted
@@ -365,7 +419,82 @@
                     baseUrl: @json(parse_url(url('/drive'), PHP_URL_PATH)),
 
                     init() {
-                        console.log('Drive ready');
+                        this.baseFolders = this.folders;
+                        this.baseFiles = this.files;
+
+                        // "/" focuses the search box (unless already typing somewhere)
+                        window.addEventListener('keydown', (e) => {
+                            const tag = (e.target.tagName || '').toLowerCase();
+                            if (e.key === '/' && !['input', 'textarea', 'select'].includes(tag) && !e.target.isContentEditable) {
+                                e.preventDefault();
+                                this.$refs.searchInput.focus();
+                            }
+                        });
+
+                        // Restore a search from the URL (?q=...) after refresh / back
+                        if (this.searchQuery.trim()) this.runSearch(true);
+                    },
+
+                    async runSearch(immediate = false) {
+                        const q = this.searchQuery.trim();
+                        if (!q) {
+                            this.clearSearch(false);
+                            return;
+                        }
+                        if (q === this.searchedFor && this.searchActive && !immediate) return;
+
+                        this.searchController?.abort();
+                        this.searchController = new AbortController();
+                        this.searchLoading = true;
+                        this.searchActive = true;
+
+                        const params = new URLSearchParams({ q });
+                        if (this.currentFolder) params.set('folder_id', this.currentFolder.id);
+
+                        try {
+                            const response = await fetch(this.baseUrl + '/search?' + params, {
+                                headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                                signal: this.searchController.signal,
+                            });
+                            const data = await this.readJson(response);
+                            if (!response.ok) throw new Error(data.message || 'Search failed.');
+
+                            this.folders = data.folders;
+                            this.files = data.files;
+                            this.searchedFor = q;
+                            this.searchTruncated = !!data.truncated;
+                            this.syncUrl(q);
+                        } catch (err) {
+                            if (err.name === 'AbortError') return;
+                            this.showError(err);
+                        } finally {
+                            this.searchLoading = false;
+                        }
+                    },
+
+                    clearSearch(focus = true) {
+                        this.searchController?.abort();
+                        this.searchQuery = '';
+                        this.searchedFor = '';
+                        this.searchActive = false;
+                        this.searchLoading = false;
+                        this.searchTruncated = false;
+                        this.folders = this.baseFolders;
+                        this.files = this.baseFiles;
+                        this.syncUrl('');
+                        if (focus) this.$refs.searchInput?.focus();
+                    },
+
+                    syncUrl(q) {
+                        const url = new URL(window.location.href);
+                        if (q) url.searchParams.set('q', q);
+                        else url.searchParams.delete('q');
+                        history.replaceState(null, '', url);
+                    },
+
+                    locationLabel(item) {
+                        const root = this.currentFolder ? this.currentFolder.name : 'My Drive';
+                        return item.location ? root + ' / ' + item.location : root;
                     },
 
                     // Safely read a JSON response; produces a readable error when the
@@ -405,113 +534,289 @@
                         }
                     },
 
-                    handleDrop(e) {
+                    async handleDrop(e) {
                         this.dragCounter = 0;
                         this.isDragging = false;
-                        const files = e.dataTransfer.files;
-                        if (!files || files.length === 0) return;
-                        const dt = new DataTransfer();
-                        for (let f of files) dt.items.add(f);
-                        if (files[0].webkitRelativePath) {
-                            this.$refs.folderInput.files = dt.files;
-                            this.handleFolderSelect({
-                                target: this.$refs.folderInput
-                            });
-                        } else {
-                            this.$refs.fileInput.files = dt.files;
-                            this.handleFileSelect({
-                                target: this.$refs.fileInput
-                            });
+
+                        // DataTransfer is emptied once this handler yields, so grab the
+                        // entries synchronously before awaiting anything.
+                        const entries = [];
+                        const items = e.dataTransfer?.items;
+                        if (items && items.length && typeof items[0].webkitGetAsEntry === 'function') {
+                            for (const item of items) {
+                                if (item.kind !== 'file') continue;
+                                const entry = item.webkitGetAsEntry();
+                                if (entry) entries.push(entry);
+                            }
                         }
+
+                        if (!entries.length) {
+                            // Very old browsers: no directory support, plain files only
+                            const files = Array.from(e.dataTransfer?.files || []);
+                            if (files.length) this.startUpload(files.map(f => ({ file: f, path: null })), []);
+                            return;
+                        }
+
+                        try {
+                            const looseFiles = [];
+                            const folders = [];
+                            for (const entry of entries) {
+                                if (entry.isFile) {
+                                    looseFiles.push({ file: await this.entryToFile(entry), path: null });
+                                } else if (entry.isDirectory) {
+                                    folders.push({ name: entry.name, items: await this.readDirectory(entry, entry.name) });
+                                }
+                            }
+                            this.startUpload(looseFiles, folders);
+                        } catch (err) {
+                            this.showError({ message: 'Could not read the dropped folder: ' + (err?.message || err) });
+                        }
+                    },
+
+                    entryToFile(entry) {
+                        return new Promise((resolve, reject) => entry.file(resolve, reject));
+                    },
+
+                    // Recursively collect every file below a dropped directory.
+                    async readDirectory(dirEntry, prefix) {
+                        const reader = dirEntry.createReader();
+                        const children = [];
+                        // readEntries returns results in chunks (~100 in Chrome); call until empty.
+                        while (true) {
+                            const batch = await new Promise((resolve, reject) => reader.readEntries(resolve, reject));
+                            if (!batch.length) break;
+                            children.push(...batch);
+                        }
+
+                        const results = [];
+                        for (const child of children) {
+                            const childPath = prefix + '/' + child.name;
+                            if (child.isFile) {
+                                if (this.isJunkFile(child.name)) continue;
+                                results.push({ file: await this.entryToFile(child), path: childPath });
+                            } else if (child.isDirectory) {
+                                results.push(...await this.readDirectory(child, childPath));
+                            }
+                        }
+                        return results;
+                    },
+
+                    isJunkFile(name) {
+                        return ['.DS_Store', 'Thumbs.db', 'desktop.ini'].includes(name) || name.startsWith('~$');
                     },
 
                     handleFileSelect(e) {
-                        const files = e.target.files;
-                        if (!files || files.length === 0) return;
-                        this.doUpload(this.baseUrl + '/upload', files, null);
+                        const files = Array.from(e.target.files || []);
                         e.target.value = '';
-                    },
-                    handleFolderSelect(e) {
-                        const files = e.target.files;
-                        if (!files || files.length === 0) return;
-                        const folderName = files[0].webkitRelativePath.split('/')[0];
-                        this.doUpload(this.baseUrl + '/upload-folder', files, folderName);
-                        e.target.value = '';
+                        if (!files.length) return;
+                        this.startUpload(files.map(f => ({ file: f, path: null })), []);
                     },
 
-                    doUpload(url, files, folderName) {
-                        Swal.fire({
-                            title: 'Uploading...',
-                            text: `Uploading ${files.length} file(s)...`,
-                            allowOutsideClick: false,
-                            didOpen: () => Swal.showLoading()
-                        });
-                        const formData = new FormData();
-                        for (let f of files) formData.append('files[]', f);
-                        if (folderName) {
-                            formData.append('folder_name', folderName);
-                            for (let f of files) {
-                                if (f.webkitRelativePath) formData.append('paths[]', f.webkitRelativePath);
-                            }
+                    handleFolderSelect(e) {
+                        const files = Array.from(e.target.files || []);
+                        e.target.value = '';
+                        if (!files.length) return;
+                        // Group by top-level folder name (a picker returns one, but be safe)
+                        const groups = {};
+                        for (const f of files) {
+                            if (this.isJunkFile(f.name)) continue;
+                            const path = f.webkitRelativePath || f.name;
+                            const root = path.split('/')[0];
+                            (groups[root] ||= []).push({ file: f, path });
                         }
-                        if (this.currentFolder) formData.append('folder_id', this.currentFolder.id);
-                        const xhr = new XMLHttpRequest();
-                        xhr.open('POST', url, true);
-                        xhr.setRequestHeader('X-CSRF-TOKEN', document.querySelector('meta[name="csrf-token"]')?.content || '');
-                        xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
-                        xhr.onload = () => {
-                            Swal.close();
-                            let result = null;
-                            try {
-                                result = JSON.parse(xhr.responseText);
-                            } catch (e) {
-                                // Server returned HTML (404/419/413/500) instead of JSON
-                                let message = 'Upload failed (HTTP ' + xhr.status + ').';
-                                if (xhr.status === 419) {
-                                    message = 'Your session expired. Please refresh the page and log in again.';
-                                } else if (xhr.status === 413 || xhr.status === 0) {
-                                    message = 'The file(s) are too large for the server. Please upload smaller files.';
-                                } else if (xhr.status === 404) {
-                                    message = 'Upload endpoint not found. Please contact the administrator.';
-                                }
-                                Swal.fire({
-                                    icon: 'error',
-                                    title: 'Upload Failed',
-                                    text: message,
-                                    confirmButtonColor: '#1a5632'
-                                });
-                                return;
+                        this.startUpload([], Object.entries(groups).map(([name, items]) => ({ name, items })));
+                    },
+
+                    // Split a list into request-sized batches (PHP caps files per request).
+                    makeBatches(items) {
+                        const MAX_FILES = 20;
+                        const MAX_BYTES = 64 * 1024 * 1024;
+                        const batches = [];
+                        let current = [];
+                        let bytes = 0;
+                        for (const item of items) {
+                            if (current.length && (current.length >= MAX_FILES || bytes + item.file.size > MAX_BYTES)) {
+                                batches.push(current);
+                                current = [];
+                                bytes = 0;
                             }
-                            if (result.success) {
-                                Swal.fire({
-                                    icon: 'success',
-                                    title: 'Done!',
-                                    text: result.message,
-                                    confirmButtonColor: '#1a5632',
-                                    timer: 2000
-                                }).then(() => {
-                                    if (result.folder) window.location.href = this.baseUrl + '/folder/' + result.folder.id;
-                                    else window.location.reload();
-                                });
-                            } else {
-                                Swal.fire({
-                                    icon: 'error',
-                                    title: 'Failed',
-                                    text: result.message || 'Upload failed.',
-                                    confirmButtonColor: '#1a5632'
-                                });
+                            current.push(item);
+                            bytes += item.file.size;
+                        }
+                        if (current.length) batches.push(current);
+                        return batches;
+                    },
+
+                    async startUpload(looseFiles, folders) {
+                        if (this.uploading) return;
+
+                        const allItems = [...looseFiles, ...folders.flatMap(f => f.items)];
+                        const totalBytes = allItems.reduce((sum, i) => sum + i.file.size, 0) || 1;
+                        const hasEmptyFolder = folders.some(f => !f.items.length);
+                        if (!allItems.length && !hasEmptyFolder) {
+                            this.showError({ message: 'Nothing to upload. The folder is empty.' });
+                            return;
+                        }
+
+                        this.uploading = true;
+                        this.cancelled = false;
+                        this.uploadProgress = 0;
+                        this.uploadStats = { current: 0, total: allItems.length, currentFile: '' };
+                        let sentBytes = 0;
+                        let error = null;
+
+                        const send = async (url, batch, extra) => {
+                            const formData = new FormData();
+                            batch.forEach(item => {
+                                formData.append('files[]', item.file, item.file.name);
+                                if (item.path) formData.append('paths[]', item.path);
+                            });
+                            for (const [k, v] of Object.entries(extra)) {
+                                if (v !== null && v !== undefined) formData.append(k, v);
                             }
+                            if (this.currentFolder) formData.append('folder_id', this.currentFolder.id);
+
+                            this.uploadStats.currentFile = batch.length === 1
+                                ? batch[0].file.name
+                                : batch[0].file.name + ' and ' + (batch.length - 1) + ' more';
+
+                            const batchBytes = batch.reduce((s, i) => s + i.file.size, 0);
+                            const result = await this.postForm(url, formData, loaded => {
+                                this.uploadProgress = Math.min(99, Math.round((sentBytes + Math.min(loaded, batchBytes)) / totalBytes * 100));
+                            });
+                            sentBytes += batchBytes;
+                            this.uploadStats.current += batch.length;
+                            this.uploadProgress = Math.min(99, Math.round(sentBytes / totalBytes * 100));
+                            return result;
                         };
-                        xhr.onerror = () => {
-                            Swal.close();
+
+                        try {
+                            for (const batch of this.makeBatches(looseFiles)) {
+                                if (this.cancelled) break;
+                                await send(this.baseUrl + '/upload', batch, {});
+                            }
+
+                            for (const folder of folders) {
+                                if (this.cancelled) break;
+                                if (!folder.items.length) {
+                                    await this.createEmptyFolder(folder.name);
+                                    continue;
+                                }
+                                let rootId = null;
+                                for (const batch of this.makeBatches(folder.items)) {
+                                    if (this.cancelled) break;
+                                    const result = await send(this.baseUrl + '/upload-folder', batch, {
+                                        folder_name: folder.name,
+                                        root_folder_id: rootId,
+                                    });
+                                    rootId = result.folder?.id ?? rootId;
+                                }
+                            }
+                        } catch (err) {
+                            error = err?.message || String(err);
+                        }
+
+                        this.uploadProgress = 100;
+                        this.uploading = false;
+                        const done = this.uploadStats.current;
+
+                        if (error && !this.cancelled) {
                             Swal.fire({
                                 icon: 'error',
-                                title: 'Error',
-                                text: 'Upload failed. Please check your connection or contact the administrator.',
-                                confirmButtonColor: '#1a5632'
-                            });
+                                title: 'Upload stopped',
+                                text: error + (done ? ` ${done} of ${allItems.length} file(s) were uploaded before the error.` : ''),
+                                confirmButtonColor: '#234A34'
+                            }).then(() => { if (done) window.location.reload(); });
+                            return;
+                        }
+
+                        Swal.fire({
+                            icon: this.cancelled ? 'info' : 'success',
+                            title: this.cancelled ? 'Upload cancelled' : 'Upload complete',
+                            text: `${done} of ${allItems.length} file(s) uploaded` + (folders.length ? ` into ${folders.length} folder(s).` : '.'),
+                            confirmButtonColor: '#234A34',
+                            timer: this.cancelled ? undefined : 1800
+                        }).then(() => window.location.reload());
+                    },
+
+                    postForm(url, formData, onProgress) {
+                        return new Promise((resolve, reject) => {
+                            const xhr = new XMLHttpRequest();
+                            this.currentXhr = xhr;
+                            xhr.open('POST', url, true);
+                            xhr.setRequestHeader('X-CSRF-TOKEN', document.querySelector('meta[name="csrf-token"]')?.content || '');
+                            xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+                            xhr.setRequestHeader('Accept', 'application/json');
+                            xhr.upload.onprogress = (ev) => { if (ev.lengthComputable) onProgress(ev.loaded); };
+                            xhr.onload = () => {
+                                let result = null;
+                                try { result = JSON.parse(xhr.responseText); } catch (e) {}
+
+                                if (xhr.status >= 200 && xhr.status < 300 && result?.success) return resolve(result);
+
+                                if (xhr.status === 419) return reject(new Error('Your session expired. Refresh the page and sign in again.'));
+                                if (xhr.status === 413) return reject(new Error('These files are larger than the server allows.'));
+                                if (xhr.status === 422 && result?.errors) {
+                                    return reject(new Error(Object.values(result.errors).flat()[0] || 'Some files were rejected.'));
+                                }
+                                reject(new Error(result?.message || ('The server responded with HTTP ' + xhr.status + '.')));
+                            };
+                            xhr.onerror = () => reject(new Error('Could not reach the server. Check your connection and try again.'));
+                            xhr.onabort = () => reject(new Error('Upload cancelled.'));
+                            xhr.send(formData);
+                        });
+                    },
+
+                    createEmptyFolder(name) {
+                        return fetch(this.baseUrl + '/folder/create', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
+                                'Accept': 'application/json'
+                            },
+                            body: JSON.stringify({ name, parent_id: this.currentFolder?.id })
+                        }).then(r => this.readJson(r)).then(result => {
+                            if (!result.success) throw new Error(result.message || 'Could not create folder "' + name + '".');
+                        });
+                    },
+
+                    // ---- Card helpers ----
+                    itemCount(folder) {
+                        return (folder.files_count || 0) + (folder.subfolders_count || 0);
+                    },
+
+                    folderSummary(folder) {
+                        const files = folder.files_count || 0;
+                        const subs = folder.subfolders_count || 0;
+                        if (!files && !subs) return 'Empty';
+                        const parts = [];
+                        if (files) parts.push(files.toLocaleString() + (files === 1 ? ' file' : ' files'));
+                        if (subs) parts.push(subs.toLocaleString() + (subs === 1 ? ' folder' : ' folders'));
+                        return parts.join(' · ');
+                    },
+
+                    isImage(file) {
+                        return !!file.mime_type && file.mime_type.startsWith('image/') && file.mime_type !== 'image/svg+xml';
+                    },
+
+                    isPdf(file) {
+                        return file.mime_type === 'application/pdf' || (file.extension || '').toLowerCase() === 'pdf';
+                    },
+
+                    typeClass(file) {
+                        const ext = (file.extension || '').toLowerCase();
+                        const groups = {
+                            'bg-red-50 text-red-700': ['pdf'],
+                            'bg-sky-50 text-sky-700': ['doc', 'docx', 'odt', 'rtf', 'txt'],
+                            'bg-emerald-50 text-emerald-700': ['xls', 'xlsx', 'csv', 'ods'],
+                            'bg-orange-50 text-orange-700': ['ppt', 'pptx', 'odp'],
+                            'bg-violet-50 text-violet-700': ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp', 'tif', 'tiff'],
                         };
-                        xhr.send(formData);
+                        for (const [cls, list] of Object.entries(groups)) {
+                            if (list.includes(ext)) return cls;
+                        }
+                        return 'bg-gray-100 text-gray-600';
                     },
 
                     previewFile(file) {
@@ -631,6 +936,7 @@
                                 .then(d => {
                                     if (d.success) {
                                         this.files = this.files.filter(f => f.id !== file.id);
+                                        this.baseFiles = this.baseFiles.filter(f => f.id !== file.id);
                                         Swal.fire({
                                             icon: 'success',
                                             title: 'Deleted!',
@@ -706,6 +1012,7 @@
                                 .then(d => {
                                     if (d.success) {
                                         this.folders = this.folders.filter(f => f.id !== folder.id);
+                                        this.baseFolders = this.baseFolders.filter(f => f.id !== folder.id);
                                         Swal.fire({
                                             icon: 'success',
                                             title: 'Deleted!',
@@ -762,7 +1069,8 @@
                         e.preventDefault();
                     },
                     cancelUpload() {
-                        Swal.close();
+                        this.cancelled = true;
+                        this.currentXhr?.abort();
                     }
                 }
             }

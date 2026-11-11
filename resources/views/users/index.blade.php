@@ -12,7 +12,7 @@
                     <p class="text-sm text-primary-500 mt-1">Manage system users and their roles</p>
                 </div>
                 <button type="button" @click="showCreateModal = true"
-                    class="inline-flex items-center gap-2 px-5 py-2.5 bg-gold-500 hover:bg-gold-600 rounded-xl text-sm font-semibold text-primary-900 shadow-md transition-all duration-200">
+                    class="inline-flex items-center gap-2 px-5 py-2.5 bg-primary-700 hover:bg-primary-800 rounded-lg text-sm font-medium text-white transition-all duration-200">
                     <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                     </svg>
@@ -128,7 +128,7 @@
                         </div>
                         <div class="flex gap-3 pt-2">
                             <button type="submit"
-                                class="flex-1 py-2.5 bg-gold-500 hover:bg-gold-600 rounded-xl text-sm font-semibold text-primary-900 transition-all duration-200"
+                                class="flex-1 py-2.5 bg-primary-700 hover:bg-primary-800 rounded-lg text-sm font-medium text-white transition-all duration-200"
                                 x-text="showEditModal ? 'Update User' : 'Create User'"></button>
                             <button type="button" @click="closeModals()"
                                 class="flex-1 py-2.5 bg-white border-2 border-primary-200 hover:bg-primary-50 rounded-xl text-sm font-semibold text-primary-700 transition-all duration-200">Cancel</button>

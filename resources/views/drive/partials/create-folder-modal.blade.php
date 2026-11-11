@@ -3,7 +3,7 @@
         <div class="fixed inset-0 bg-primary-900/50 backdrop-blur-sm" @click="showCreateFolder = false; newFolderName = ''"></div>
         <div class="relative transform overflow-hidden rounded-2xl bg-white px-6 pb-6 pt-6 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-md">
             <!-- Modal Icon -->
-            <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-gold-100 to-gold-200 shadow-sm">
+            <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-gold-100 shadow-sm">
                 <svg class="h-7 w-7 text-gold-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                 </svg>
@@ -42,7 +42,7 @@
             <div class="mt-6 flex gap-3 pb-4">
                 <button @click="createFolder()" 
                         :disabled="!newFolderName"
-                        class="flex-1 py-3 bg-gold-500 hover:bg-gold-600 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl text-sm font-semibold text-primary-900 shadow-sm transition-all duration-200">
+                        class="flex-1 py-3 bg-primary-700 hover:bg-primary-800 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg text-sm font-medium text-white transition-all duration-200">
                     Create Folder
                 </button>
                 <button @click="showCreateFolder = false; newFolderName = ''"

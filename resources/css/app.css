@@ -1,25 +1,131 @@
+@import '@fontsource/ibm-plex-sans/400.css';
+@import '@fontsource/ibm-plex-sans/500.css';
+@import '@fontsource/ibm-plex-sans/600.css';
+@import '@fontsource/ibm-plex-sans/700.css';
+@import '@fontsource/ibm-plex-mono/500.css';
+@import '@fontsource/source-serif-4/600.css';
+@import '@fontsource/source-serif-4/700.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
+    html {
+        -webkit-tap-highlight-color: transparent;
+    }
+
     body {
-        @apply antialiased;
+        @apply bg-paper font-sans text-[15px] text-gray-800 antialiased;
+        font-feature-settings: 'ss02';
+    }
+
+    /* Page titles get the serif — the one typographic gesture that gives the
+       archive its institutional voice. Everything else stays in Plex Sans. */
+    main h1 {
+        @apply font-serif tracking-tight;
+        font-weight: 600;
+    }
+
+    :focus-visible {
+        @apply outline-none ring-2 ring-primary-500/40 ring-offset-1 ring-offset-paper;
+    }
+
+    [x-cloak] {
+        display: none !important;
+    }
+
+    ::selection {
+        @apply bg-gold-200 text-primary-950;
     }
 }
 
 @layer components {
-    .card-hover {
-        @apply transition-all duration-300 ease-in-out;
+    /* Surfaces */
+    .panel {
+        @apply rounded-xl border border-gray-200/80 bg-white shadow-card;
     }
-    
+
+    .panel-header {
+        @apply flex items-center justify-between gap-3 border-b border-gray-100 px-5 py-3.5;
+    }
+
+    .panel-title {
+        @apply text-sm font-semibold text-gray-900;
+    }
+
+    .eyebrow {
+        @apply text-[11px] font-medium uppercase tracking-[0.08em] text-gray-500;
+    }
+
+    /* Buttons */
+    .btn {
+        @apply inline-flex items-center justify-center gap-2 rounded-lg px-3.5 py-2 text-sm font-medium transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-50;
+    }
+
+    .btn-primary {
+        @apply btn bg-primary-700 text-white hover:bg-primary-800 active:bg-primary-900;
+    }
+
+    .btn-secondary {
+        @apply btn border border-gray-300 bg-white text-gray-800 hover:border-gray-400 hover:bg-gray-50;
+    }
+
+    .btn-ghost {
+        @apply btn text-gray-600 hover:bg-gray-100 hover:text-gray-900;
+    }
+
+    /* Sidebar navigation */
+    .nav-item {
+        @apply relative flex items-center gap-3 rounded-md px-3 py-2 text-sm text-gray-600 transition-colors duration-150 hover:bg-gray-100 hover:text-gray-900;
+    }
+
+    .nav-item svg {
+        @apply h-[18px] w-[18px] shrink-0 text-gray-400 transition-colors;
+    }
+
+    .nav-item:hover svg {
+        @apply text-gray-600;
+    }
+
+    .nav-item[aria-current='page'] {
+        @apply bg-primary-50 font-medium text-primary-800;
+    }
+
+    .nav-item[aria-current='page'] svg {
+        @apply text-primary-600;
+    }
+
+    .nav-item[aria-current='page']::before {
+        content: '';
+        @apply absolute -left-3 top-1.5 bottom-1.5 w-[3px] rounded-r bg-gold-500;
+    }
+
+    .tabular {
+        font-variant-numeric: tabular-nums;
+    }
+
+    /* Kept for existing pages */
+    .card-hover {
+        @apply transition-shadow duration-200;
+    }
+
     .card-hover:hover {
-        @apply transform -translate-y-1 shadow-lg;
+        @apply shadow-md;
     }
 }
 
 @layer utilities {
     .animate-spin-slow {
         animation: spin 3s linear infinite;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.01ms !important;
     }
 }

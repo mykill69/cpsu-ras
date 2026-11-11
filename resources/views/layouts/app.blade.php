@@ -5,12 +5,10 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>CPSU RAS - @yield('title')</title>
+    <meta name="theme-color" content="#F6F5F1">
+    <title>@yield('title') · CPSU RAS</title>
 
-    <!-- Fonts -->
-    <link rel="preconnect" href="https://fonts.bunny.net">
-    <link href="https://fonts.bunny.net/css?family=inter:300,400,500,600,700,800" rel="stylesheet" />
-    <link rel="shortcut icon" href="{{ asset('images/cpsu-logo.png') }}" type="image/x-icon">
+    <link rel="shortcut icon" href="{{ asset('images/cpsu-logo.png') }}" type="image/png">
     <!-- SweetAlert2 -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
@@ -19,36 +17,38 @@
     @stack('styles')
 </head>
 
-<body class="h-full bg-gradient-to-br from-primary-50 via-white to-gold-50">
-    <div x-data="{ sidebarOpen: false }" class="min-h-full">
-        <!-- Navigation -->
-        @include('layouts.navigation')
+<body class="h-full">
+    <a href="#main"
+        class="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[60] focus:rounded-md focus:bg-white focus:px-3 focus:py-2 focus:text-sm focus:shadow">
+        Skip to content
+    </a>
 
-        <!-- Sidebar -->
+    <div x-data="{ sidebarOpen: false }" @keydown.escape.window="sidebarOpen = false" class="min-h-full">
         @include('layouts.sidebar')
 
-        <!-- Main Content -->
-        <main class="lg:pl-72">
-            <!-- Maintenance Mode Banner - Inside main content -->
-            @if(session('maintenance_mode'))
-                <div class="bg-yellow-50 border-b border-yellow-200">
-                    <div class="px-4 sm:px-6 lg:px-8 py-3">
-                        <div class="flex items-center justify-center gap-2">
-                            <svg class="w-5 h-5 text-yellow-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                            </svg>
-                            <span class="text-sm text-yellow-800 font-medium text-center">
-                                <strong>Maintenance Mode Active:</strong> System is currently in maintenance mode. Only administrators can access the system.
-                            </span>
-                        </div>
+        <div class="lg:pl-64">
+            @include('layouts.navigation')
+
+            @if (session('maintenance_mode'))
+                <div class="border-b border-amber-200 bg-amber-50">
+                    <div class="mx-auto flex max-w-[1400px] items-start gap-2.5 px-4 py-2.5 sm:px-6 lg:px-8">
+                        <svg class="mt-0.5 h-4 w-4 shrink-0 text-amber-600" fill="none" viewBox="0 0 24 24"
+                            stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round"
+                                d="M12 9v3.75m0 3.75h.008M10.29 3.86 1.82 18a1.5 1.5 0 0 0 1.29 2.25h17.78A1.5 1.5 0 0 0 22.18 18L13.71 3.86a1.5 1.5 0 0 0-2.42 0Z" />
+                        </svg>
+                        <p class="text-sm text-amber-900">
+                            <span class="font-semibold">Maintenance mode is on.</span>
+                            Only administrators can sign in until it's turned off in Settings.
+                        </p>
                     </div>
                 </div>
             @endif
 
-            <div class="py-4 px-4 sm:px-6 lg:px-8 w-full">
+            <main id="main" class="mx-auto w-full max-w-[1400px] px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
                 @yield('content')
-            </div>
-        </main>
+            </main>
+        </div>
     </div>
 
     @stack('scripts')

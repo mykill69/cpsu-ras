@@ -1,30 +1,25 @@
-<!-- Mobile sidebar overlay -->
-<div x-show="sidebarOpen" 
-     class="relative z-50 lg:hidden" 
-     x-cloak
-     x-transition:enter="transition-opacity ease-linear duration-300"
-     x-transition:enter-start="opacity-0"
-     x-transition:enter-end="opacity-100"
-     x-transition:leave="transition-opacity ease-linear duration-300"
-     x-transition:leave-start="opacity-100"
-     x-transition:leave-end="opacity-0">
-    <div class="fixed inset-0 bg-primary-900/80 backdrop-blur-sm"></div>
-    <div class="fixed inset-0 flex">
-        <div class="relative mr-16 flex w-full max-w-xs flex-1">
-            <div class="absolute left-full top-0 flex w-16 justify-center pt-5">
-                <button type="button" @click="sidebarOpen = false" class="-m-2.5 p-2.5">
-                    <span class="sr-only">Close sidebar</span>
-                    <svg class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                </button>
-            </div>
-            @include('layouts.sidebar-content')
-        </div>
+<!-- Mobile drawer -->
+<div x-show="sidebarOpen" x-cloak class="relative z-50 lg:hidden" role="dialog" aria-modal="true">
+    <div x-show="sidebarOpen" x-transition.opacity.duration.200ms @click="sidebarOpen = false"
+        class="fixed inset-0 bg-gray-900/40"></div>
+
+    <div x-show="sidebarOpen"
+        x-transition:enter="transition ease-out duration-200" x-transition:enter-start="-translate-x-full"
+        x-transition:enter-end="translate-x-0" x-transition:leave="transition ease-in duration-150"
+        x-transition:leave-start="translate-x-0" x-transition:leave-end="-translate-x-full"
+        class="fixed inset-y-0 left-0 flex w-72 max-w-[85vw]">
+        <button type="button" @click="sidebarOpen = false"
+            class="absolute right-2 top-3 z-10 rounded-md p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-900">
+            <span class="sr-only">Close menu</span>
+            <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+            </svg>
+        </button>
+        @include('layouts.sidebar-content')
     </div>
 </div>
 
-<!-- Desktop sidebar -->
-<div class="hidden lg:fixed lg:inset-y-0 lg:z-50 lg:flex lg:w-72 lg:flex-col">
+<!-- Desktop rail -->
+<div class="hidden lg:fixed lg:inset-y-0 lg:z-40 lg:flex lg:w-64 lg:flex-col">
     @include('layouts.sidebar-content')
 </div>

@@ -24,6 +24,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Drive - Main file management
     Route::prefix('drive')->name('drive.')->group(function () {
         Route::get('/', [DriveController::class, 'index'])->name('index');
+        Route::get('/search', [DriveController::class, 'search'])->name('search');
         Route::get('/folder/{folder}', [DriveController::class, 'index'])->name('folder');
         
         Route::post('/folder/create', [DriveController::class, 'createFolder'])->name('folder.create');

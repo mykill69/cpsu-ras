@@ -21,8 +21,8 @@
             <div class="p-5 sm:p-6">
                 <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     <div class="flex items-center gap-4">
-                        <div class="hidden sm:flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-primary-500 to-primary-700 flex-shrink-0 shadow-lg">
-                            <svg class="w-7 h-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <div class="hidden sm:flex items-center justify-center w-12 h-12 rounded-xl bg-primary-50 text-primary-700 ring-1 ring-primary-100 flex-shrink-0">
+                            <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
                             </svg>
                         </div>
@@ -46,7 +46,7 @@
 
             <!-- Statistics Cards -->
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 px-5 sm:px-6 pb-6">
-                <div class="stat-card bg-gradient-to-br from-primary-50 to-primary-100 rounded-xl p-4">
+                <div class="stat-card bg-primary-50 rounded-xl p-4">
                     <div class="flex items-center justify-between">
                         <div class="min-w-0">
                             <p class="text-xs font-medium text-primary-500 truncate">Total Activities</p>
@@ -59,7 +59,7 @@
                         </div>
                     </div>
                 </div>
-                <div class="stat-card bg-gradient-to-br from-gold-50 to-gold-100 rounded-xl p-4">
+                <div class="stat-card bg-gold-50 rounded-xl p-4">
                     <div class="flex items-center justify-between">
                         <div class="min-w-0">
                             <p class="text-xs font-medium text-primary-500 truncate">Today</p>
@@ -72,7 +72,7 @@
                         </div>
                     </div>
                 </div>
-                <div class="stat-card bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-4">
+                <div class="stat-card bg-green-50 rounded-xl p-4">
                     <div class="flex items-center justify-between">
                         <div class="min-w-0">
                             <p class="text-xs font-medium text-primary-500 truncate">Last 7 Days</p>
@@ -85,7 +85,7 @@
                         </div>
                     </div>
                 </div>
-                <div class="stat-card bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-4">
+                <div class="stat-card bg-blue-50 rounded-xl p-4">
                     <div class="flex items-center justify-between">
                         <div class="min-w-0">
                             <p class="text-xs font-medium text-primary-500 truncate">Last 30 Days</p>
@@ -98,7 +98,7 @@
                         </div>
                     </div>
                 </div>
-                <div class="stat-card bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-4">
+                <div class="stat-card bg-purple-50 rounded-xl p-4">
                     <div class="flex items-center justify-between">
                         <div class="min-w-0">
                             <p class="text-xs font-medium text-primary-500 truncate">Active Users</p>

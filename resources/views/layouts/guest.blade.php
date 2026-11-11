@@ -1,30 +1,29 @@
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="h-full">
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="csrf-token" content="{{ csrf_token() }}">
+        <title>{{ config('app.name', 'CPSU RAS') }}</title>
+        <link rel="shortcut icon" href="{{ asset('images/cpsu-logo.png') }}" type="image/png">
 
-        <title>{{ config('app.name', 'Laravel') }}</title>
-
-        <!-- Fonts -->
-        <link rel="preconnect" href="https://fonts.bunny.net">
-        <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
-
-        <!-- Scripts -->
         @vite(['resources/css/app.css', 'resources/js/app.js'])
     </head>
-    <body class="font-sans text-gray-900 antialiased">
-        <div class="min-h-screen flex flex-col sm:justify-center items-center pt-6 sm:pt-0 bg-gray-100 dark:bg-gray-900">
-            <div>
-                <a href="{{ url('/') }}">
-                    <x-application-logo class="w-20 h-20 fill-current text-gray-500" />
-                </a>
-            </div>
+    <body class="h-full">
+        <div class="flex min-h-full flex-col items-center justify-center px-5 py-12">
+            <a href="{{ url('/') }}" class="mb-8 flex items-center gap-3">
+                <x-application-logo class="h-11 w-11" />
+                <span class="leading-tight">
+                    <span class="block font-serif text-lg font-semibold text-primary-900">CPSU Records</span>
+                    <span class="block text-xs text-gray-500">Archive System</span>
+                </span>
+            </a>
 
-            <div class="w-full sm:max-w-md mt-6 px-6 py-4 bg-white dark:bg-gray-800 shadow-md overflow-hidden sm:rounded-lg">
+            <div class="panel w-full max-w-[420px] px-6 py-7 sm:px-8">
                 {{ $slot }}
             </div>
+
+            <p class="mt-8 text-xs text-gray-400">&copy; {{ date('Y') }} Central Philippines State University</p>
         </div>
     </body>
 </html>

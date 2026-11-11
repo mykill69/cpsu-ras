@@ -70,6 +70,7 @@ public function index(Request $request, ?Folder $folder = null)
     $parentId = $folder ? $folder->id : null;
     
     $foldersQuery = Folder::with(['creator'])
+        ->withCount(['files as files_count', 'children as subfolders_count'])
         ->where('parent_id', $parentId)
         ->where('id', '!=', $parentId)
         ->where('is_archived', false);
@@ -83,13 +84,16 @@ public function index(Request $request, ?Folder $folder = null)
     }
 
     $sort = $request->get('sort', 'name');
-    $direction = $request->get('direction', 'asc');
+    $direction = $request->get('direction', 'asc') === 'desc' ? 'desc' : 'asc';
     $allowedSorts = ['name', 'created_at', 'updated_at'];
     if (in_array($sort, $allowedSorts)) {
         $foldersQuery->orderBy($sort, $direction);
     }
 
+    // children_count is an appended accessor that runs one query per folder;
+    // the withCount above already provides the numbers in a single query.
     $folders = $foldersQuery->paginate(30);
+    $folders->getCollection()->each->setAppends([]);
     
     $filesQuery = File::with(['uploader'])
         ->where('folder_id', $parentId);
@@ -109,6 +113,95 @@ public function index(Request $request, ?Folder $folder = null)
 }
 
 
+
+/**
+ * Live search used by the Drive search bar.
+ *
+ * Searches folder names and file names inside the given folder and everything
+ * below it (or the whole drive when no folder is given). Each result carries a
+ * "location" path relative to where the search started.
+ */
+public function search(Request $request)
+{
+    $validated = $request->validate([
+        'q' => 'required|string|max:255',
+        'folder_id' => 'nullable|integer|exists:folders,id',
+    ]);
+
+    $term = trim($validated['q']);
+    $startId = isset($validated['folder_id']) ? (int) $validated['folder_id'] : null;
+    $like = '%' . addcslashes($term, '%_\\') . '%';
+    $limit = 60;
+
+    // One query for the folder tree, then walk it in memory.
+    $tree = Folder::where('is_archived', false)->get(['id', 'name', 'parent_id']);
+    $byId = $tree->keyBy('id');
+    $childrenOf = $tree->groupBy(fn ($f) => $f->parent_id ?? 0);
+
+    $scopeIds = [];
+    $stack = [$startId ?? 0];
+    while ($stack) {
+        $id = array_pop($stack);
+        foreach ($childrenOf->get($id, collect()) as $child) {
+            $scopeIds[] = $child->id;
+            $stack[] = $child->id;
+        }
+    }
+
+    // Folder path relative to the starting folder, e.g. "Reports / 2026"
+    $locationOf = function (?int $folderId) use ($byId, $startId) {
+        $parts = [];
+        $guard = 0;
+        while ($folderId && $folderId !== $startId && $guard++ < 50) {
+            $folder = $byId->get($folderId);
+            if (!$folder) break;
+            array_unshift($parts, $folder->name);
+            $folderId = $folder->parent_id;
+        }
+        return $parts ? implode(' / ', $parts) : null;
+    };
+
+    $folders = Folder::withCount(['files as files_count', 'children as subfolders_count'])
+        ->whereIn('id', $scopeIds ?: [0])
+        ->where('name', 'like', $like)
+        ->orderBy('name')
+        ->limit($limit)
+        ->get()
+        ->each->setAppends([])
+        ->map(function ($folder) use ($locationOf) {
+            $folder->location = $locationOf($folder->parent_id);
+            return $folder;
+        });
+
+    $fileScope = $scopeIds;
+    if ($startId) {
+        $fileScope[] = $startId;
+    }
+
+    $files = File::where(function ($q) use ($like) {
+            $q->where('original_name', 'like', $like)->orWhere('name', 'like', $like);
+        })
+        ->where(function ($q) use ($fileScope, $startId) {
+            $q->whereIn('folder_id', $fileScope ?: [0]);
+            if (!$startId) {
+                $q->orWhereNull('folder_id');
+            }
+        })
+        ->orderBy('original_name')
+        ->limit($limit)
+        ->get()
+        ->map(function ($file) use ($locationOf) {
+            $file->location = $locationOf($file->folder_id);
+            return $file;
+        });
+
+    return response()->json([
+        'query' => $term,
+        'folders' => $folders->values(),
+        'files' => $files->values(),
+        'truncated' => $folders->count() >= $limit || $files->count() >= $limit,
+    ]);
+}
 
 public function getBreadcrumbAttribute()
 {
@@ -233,41 +326,69 @@ public function getBreadcrumbAttribute()
     }
 }
 
+    /**
+     * Upload a folder (and any nested sub-folders).
+     *
+     * The browser sends files in batches. The first batch creates the root
+     * folder and gets its id back; later batches pass that id as
+     * `root_folder_id` so every file lands in the same tree.
+     * `paths[i]` is the file's relative path, e.g. "Reports/2026/Q1/a.pdf".
+     */
     public function uploadFolder(Request $request)
 {
     $request->validate([
         'folder_name' => 'required|string|max:255',
-        'parent_id' => 'nullable|exists:folders,id',
+        'folder_id' => 'nullable|exists:folders,id',
+        'root_folder_id' => 'nullable|exists:folders,id',
+        'files' => 'required|array',
         'files.*' => 'required|file|max:102400',
+        'paths' => 'nullable|array',
+        'paths.*' => 'nullable|string|max:1024',
     ]);
 
     try {
         DB::beginTransaction();
 
-        // ALWAYS create a new folder with unique name
-        $baseName = $request->folder_name;
-        $folderName = $baseName;
-        $counter = 1;
-        
-        while (Folder::where('parent_id', $request->parent_id)
-            ->where('name', $folderName)
-            ->exists()) {
-            $folderName = $baseName . ' (' . $counter . ')';
-            $counter++;
+        if ($request->filled('root_folder_id')) {
+            $folder = Folder::findOrFail($request->root_folder_id);
+        } else {
+            // Create the root folder with a unique name inside the current folder
+            $parentId = $request->folder_id;
+            $baseName = $this->cleanFolderName($request->folder_name);
+            $folderName = $baseName;
+            $counter = 1;
+
+            while (Folder::where('parent_id', $parentId)
+                ->where('name', $folderName)
+                ->exists()) {
+                $folderName = $baseName . ' (' . $counter . ')';
+                $counter++;
+            }
+
+            $folder = Folder::create([
+                'name' => $folderName,
+                'parent_id' => $parentId,
+                'department_id' => auth()->user()->department_id,
+            ]);
+
+            activity()
+                ->performedOn($folder)
+                ->causedBy(auth()->user())
+                ->withProperties(['action' => 'uploaded', 'name' => $folder->name])
+                ->log('Folder uploaded');
         }
 
-        $folder = Folder::create([
-            'name' => $folderName,
-            'parent_id' => $request->parent_id,
-            'department_id' => auth()->user()->department_id,
-        ]);
-
+        $paths = $request->input('paths', []);
+        $folderCache = [];
         $uploadedFiles = [];
         $totalSize = 0;
-        
+
         foreach ($request->file('files') as $index => $uploadedFile) {
+            if (!$uploadedFile || !$uploadedFile->isValid()) continue;
+
             $fileName = $uploadedFile->getClientOriginalName();
-            
+            $targetFolder = $this->resolveSubfolder($folder, $paths[$index] ?? null, $folderCache);
+
             $tempPath = $uploadedFile->store('temp');
             $encryptedData = $this->encryptionService->encryptFile($tempPath);
             Storage::delete($tempPath);
@@ -275,19 +396,19 @@ public function getBreadcrumbAttribute()
             File::create([
                 'name' => pathinfo($fileName, PATHINFO_FILENAME),
                 'original_name' => $fileName,
-                'mime_type' => $uploadedFile->getMimeType(),
-                'extension' => $uploadedFile->getClientOriginalExtension(),
+                'mime_type' => $uploadedFile->getMimeType() ?? 'application/octet-stream',
+                'extension' => $uploadedFile->getClientOriginalExtension() ?? '',
                 'size' => $uploadedFile->getSize(),
                 'disk' => 'local',
                 'path' => $tempPath,
                 'encrypted_path' => $encryptedData['encrypted_path'],
                 'checksum_sha256' => $encryptedData['hash'],
                 'encryption_key_id' => $encryptedData['encrypted_key'],
-                'folder_id' => $folder->id,
+                'folder_id' => $targetFolder->id,
                 'is_encrypted' => true,
                 'metadata' => [
-                    'iv' => $encryptedData['iv'],
-                    'tag' => $encryptedData['tag'],
+                    'iv' => $encryptedData['iv'] ?? null,
+                    'tag' => $encryptedData['tag'] ?? null,
                 ],
             ]);
 
@@ -300,7 +421,7 @@ public function getBreadcrumbAttribute()
         return response()->json([
             'success' => true,
             'message' => 'Folder "' . $folder->name . '" uploaded with ' . count($uploadedFiles) . ' file(s)',
-            'folder' => $folder->load('children', 'files'),
+            'folder' => ['id' => $folder->id, 'name' => $folder->name],
             'files_count' => count($uploadedFiles),
         ]);
 
@@ -310,6 +431,50 @@ public function getBreadcrumbAttribute()
         return response()->json(['success' => false, 'message' => 'Failed to upload folder: ' . $e->getMessage()], 500);
     }
 }
+
+    /**
+     * Walk a relative path ("Root/Sub/Deeper/file.pdf") below $root, creating any
+     * missing sub-folders. The first segment is the root itself and the last is
+     * the file name, so only the segments in between become folders.
+     */
+    private function resolveSubfolder(Folder $root, ?string $relativePath, array &$cache): Folder
+    {
+        if (!$relativePath) {
+            return $root;
+        }
+
+        $segments = array_values(array_filter(
+            explode('/', str_replace('\\', '/', $relativePath)),
+            fn ($s) => $s !== '' && $s !== '.' && $s !== '..'
+        ));
+        $segments = array_slice($segments, 1, -1);
+
+        $current = $root;
+        $key = (string) $root->id;
+
+        foreach ($segments as $segment) {
+            $name = $this->cleanFolderName($segment);
+            $key .= '/' . $name;
+
+            if (!isset($cache[$key])) {
+                $cache[$key] = Folder::firstOrCreate(
+                    ['parent_id' => $current->id, 'name' => $name],
+                    ['department_id' => auth()->user()->department_id]
+                );
+            }
+
+            $current = $cache[$key];
+        }
+
+        return $current;
+    }
+
+    private function cleanFolderName(string $name): string
+    {
+        $name = trim(preg_replace('/[\x00-\x1F\x7F]/u', '', $name));
+
+        return Str::limit($name !== '' ? $name : 'Untitled folder', 255, '');
+    }
 
     public function downloadFile($file)
 {
@@ -425,10 +590,71 @@ public function getBreadcrumbAttribute()
         return response()->json(['success' => true, 'message' => 'File deleted']);
     }
 
-    public function thumbnail(File $file)
+    /**
+     * Small preview image for image files.
+     *
+     * Generated on the fly from the encrypted original and never written to disk
+     * unencrypted; the browser caches it privately instead.
+     */
+    public function thumbnail(Request $request, $file)
     {
-        // Return file thumbnail if available
-        abort(404);
+        $file = File::where('uuid', $file)->orWhere('id', $file)->firstOrFail();
+
+        $isRaster = $file->mime_type
+            && str_starts_with($file->mime_type, 'image/')
+            && $file->mime_type !== 'image/svg+xml';
+
+        if (!$isRaster || !$file->encrypted_path || !function_exists('imagecreatefromstring')) {
+            abort(404);
+        }
+
+        $etag = '"' . substr($file->checksum_sha256 ?: md5($file->uuid), 0, 32) . '-t1"';
+        if ($request->header('If-None-Match') === $etag) {
+            return response('', 304, ['ETag' => $etag, 'Cache-Control' => 'private, max-age=604800']);
+        }
+
+        try {
+            $source = @imagecreatefromstring($file->getDecryptedContent());
+            if (!$source) {
+                abort(404);
+            }
+
+            $width = imagesx($source);
+            $height = imagesy($source);
+            $max = 480;
+            $scale = min(1, $max / max($width, $height));
+            $newWidth = max(1, (int) round($width * $scale));
+            $newHeight = max(1, (int) round($height * $scale));
+
+            $thumb = imagecreatetruecolor($newWidth, $newHeight);
+            imagealphablending($thumb, false);
+            imagesavealpha($thumb, true);
+            imagefill($thumb, 0, 0, imagecolorallocatealpha($thumb, 0, 0, 0, 127));
+            imagecopyresampled($thumb, $source, 0, 0, 0, 0, $newWidth, $newHeight, $width, $height);
+            imagedestroy($source);
+
+            ob_start();
+            if (function_exists('imagewebp')) {
+                imagewebp($thumb, null, 80);
+                $type = 'image/webp';
+            } else {
+                imagepng($thumb, null, 6);
+                $type = 'image/png';
+            }
+            $data = ob_get_clean();
+            imagedestroy($thumb);
+
+            return response($data, 200, [
+                'Content-Type' => $type,
+                'Cache-Control' => 'private, max-age=604800',
+                'ETag' => $etag,
+            ]);
+        } catch (\Symfony\Component\HttpKernel\Exception\HttpException $e) {
+            throw $e;
+        } catch (\Throwable $e) {
+            Log::warning('Thumbnail failed for file ' . $file->id . ': ' . $e->getMessage());
+            abort(404);
+        }
     }
 
     // public function preview(File $file)

@@ -11,7 +11,7 @@
         <h1 class="text-2xl font-bold text-primary-900 mb-2">Something went wrong</h1>
         <p class="text-primary-600 mb-4">{{ $message }}</p>
         <a href="{{ route('dashboard') }}" 
-           class="inline-flex items-center gap-2 px-5 py-2.5 bg-gold-500 hover:bg-gold-600 rounded-xl text-sm font-semibold text-primary-900">
+           class="inline-flex items-center gap-2 px-5 py-2.5 bg-primary-700 hover:bg-primary-800 rounded-lg text-sm font-medium text-white">
             Go to Dashboard
         </a>
     </div>

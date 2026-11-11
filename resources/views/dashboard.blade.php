@@ -2,309 +2,219 @@
 
 @section('title', 'Dashboard')
 
+@php
+    $hour = now()->hour;
+    $greeting = $hour < 12 ? 'Good morning' : ($hour < 18 ? 'Good afternoon' : 'Good evening');
+    $canSeeLogs = auth()->user()->hasRole(['administrator', 'records_officer']);
+    $maxDay = max(1, collect($uploadsByDay)->max('count'));
+    $monthTotal = collect($uploadsByDay)->sum('count');
+@endphp
+
 @section('content')
-    <div x-data="dashboardData()" x-init="init()">
-        <!-- Page Header -->
-        <div class="sm:flex sm:items-center sm:justify-between mb-8">
+    <div x-data="dashboardData()" x-init="init()" class="space-y-6">
+
+        <!-- Header -->
+        <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div>
-                <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Dashboard</h1>
-                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                    Overview of your records archive system
-                </p>
+                <h1 class="text-[28px] leading-tight text-primary-900">{{ $greeting }}, {{ auth()->user()->first_name }}</h1>
+                <p class="mt-1 text-sm text-gray-500">A quick read on what's moving through the archive.</p>
             </div>
-            <div class="mt-4 sm:mt-0">
-                <button @click="refreshData()"
-                    class="inline-flex items-center rounded-md bg-white dark:bg-gray-800 px-3 py-2 text-sm font-semibold text-gray-900 dark:text-white shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700">
-                    <svg class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            <div class="flex items-center gap-2">
+                <button type="button" @click="refreshData()" class="btn-ghost" :disabled="loading">
+                    <svg class="h-4 w-4" :class="loading && 'animate-spin'" fill="none" viewBox="0 0 24 24"
+                        stroke-width="1.75" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                            d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
                     </svg>
-                    Refresh
+                    <span class="text-xs text-gray-500">Updated <span x-text="updatedLabel"></span></span>
                 </button>
-            </div>
-        </div>
-
-        <!-- Stats Cards -->
-        <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4 mb-8">
-            <!-- Total Folders -->
-            <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-                <div class="flex items-center">
-                    <div class="flex-shrink-0 p-3 bg-blue-100 dark:bg-blue-900 rounded-lg">
-                        <svg class="h-8 w-8 text-blue-600 dark:text-blue-400" fill="none" viewBox="0 0 24 24"
-                            stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-                        </svg>
-                    </div>
-                    <div class="ml-4">
-                        <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Total Folders</p>
-                        <p class="text-2xl font-bold text-gray-900 dark:text-white" x-text="stats.total_folders">0</p>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Total Files -->
-            <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-                <div class="flex items-center">
-                    <div class="flex-shrink-0 p-3 bg-green-100 dark:bg-green-900 rounded-lg">
-                        <svg class="h-8 w-8 text-green-600 dark:text-green-400" fill="none" viewBox="0 0 24 24"
-                            stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                        </svg>
-                    </div>
-                    <div class="ml-4">
-                        <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Total Files</p>
-                        <p class="text-2xl font-bold text-gray-900 dark:text-white" x-text="stats.total_files">0</p>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Active Users -->
-            <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-                <div class="flex items-center">
-                    <div class="flex-shrink-0 p-3 bg-purple-100 dark:bg-purple-900 rounded-lg">
-                        <svg class="h-8 w-8 text-purple-600 dark:text-purple-400" fill="none" viewBox="0 0 24 24"
-                            stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
-                        </svg>
-                    </div>
-                    <div class="ml-4">
-                        <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Active Users</p>
-                        <p class="text-2xl font-bold text-gray-900 dark:text-white" x-text="stats.total_users">0</p>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Storage Used -->
-            <div class="bg-white rounded-2xl shadow-sm border border-primary-100 p-6">
-                <div class="flex items-center">
-                    <div class="flex-shrink-0 p-3 bg-blue-100 rounded-xl">
-                        <svg class="h-8 w-8 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M4 7v10c0 2 1 3 3 3h10c2 0 3-1 3-3V7c0-2-1-3-3-3H7c-2 0-3 1-3 3z" />
-                        </svg>
-                    </div>
-                    <div class="ml-4">
-                        <p class="text-sm font-medium text-primary-500">Storage Used</p>
-                        <p class="text-2xl font-bold text-primary-900" x-text="stats.storage_usage.formatted_used">0 B</p>
-                    </div>
-                </div>
-                <div class="mt-4">
-                    <div class="flex justify-between text-xs text-primary-400 mb-1">
-                        <span x-text="stats.storage_usage.percentage + '%'">0%</span>
-                        <span x-text="stats.storage_usage.formatted_total">0 GB</span>
-                    </div>
-                    <div class="w-full bg-primary-100 rounded-full h-2.5">
-                        <div class="bg-gradient-to-r from-primary-600 to-gold-500 h-2.5 rounded-full transition-all duration-500"
-                            :style="'width: ' + stats.storage_usage.percentage + '%'"></div>
-                    </div>
-                </div>
-                <a href="{{ route('backup.index') }}"
-                    class="mt-4 inline-flex items-center gap-1 text-xs text-gold-500 hover:text-gold-600 font-medium transition-colors">
-                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                <a href="{{ route('drive.index') }}" class="btn-primary">
+                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                            d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" />
                     </svg>
-                    Manage Backup & Sync →
+                    Upload records
                 </a>
             </div>
         </div>
 
-        <!-- Recent Uploads & Activity -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <!-- Recent Uploads -->
-            <div class="bg-white dark:bg-gray-800 rounded-lg shadow">
-                <div class="p-6 border-b border-gray-200 dark:border-gray-700">
-                    <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Recent Uploads</h2>
-                </div>
-                <div class="p-6">
-                    <template x-if="stats.recent_uploads.length === 0">
-                        <p class="text-gray-500 dark:text-gray-400 text-center py-4">No recent uploads</p>
-                    </template>
-                    <ul role="list" class="divide-y divide-gray-200 dark:divide-gray-700">
-                        <template x-for="file in stats.recent_uploads" :key="file.id">
-                            <li class="py-4">
-                                <div class="flex items-center space-x-4">
-                                    <div class="flex-shrink-0">
-                                        <span
-                                            class="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-gray-100 dark:bg-gray-700">
-                                            <svg class="h-6 w-6 text-gray-500" fill="none" viewBox="0 0 24 24"
-                                                stroke="currentColor">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                            </svg>
-                                        </span>
-                                    </div>
-                                    <div class="flex-1 min-w-0">
-                                        <p class="text-sm font-medium text-gray-900 dark:text-white truncate"
-                                            x-text="file.original_name"></p>
-                                        <p class="text-sm text-gray-500 dark:text-gray-400">
-                                            <span x-text="file.uploader?.name"></span> •
-                                            <span x-text="file.formatted_size"></span> •
-                                            <span x-text="new Date(file.created_at).toLocaleDateString()"></span>
-                                        </p>
-                                    </div>
-                                    <div>
-                                        <a :href="driveBaseUrl + '/download/' + file.id" @click.stop
-                                            class="text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-500">
-                                            Download
-                                        </a>
-                                    </div>
-                                </div>
-                            </li>
-                        </template>
-                    </ul>
-                </div>
+        <!-- Key figures: one ruled strip, not four floating cards -->
+        <section class="panel grid grid-cols-2 divide-gray-100 lg:grid-cols-4 lg:divide-x" aria-label="Key figures">
+            <div class="border-b border-r border-gray-100 p-5 lg:border-0">
+                <p class="eyebrow">Folders</p>
+                <p class="mt-2 text-3xl font-semibold tracking-tight text-gray-900 tabular"
+                    x-text="fmt(stats.total_folders)">{{ number_format($stats['total_folders']) }}</p>
+                <p class="mt-1 text-xs text-gray-500">Across all departments</p>
             </div>
-
-            <!-- Recent Activity -->
-            <div class="bg-white rounded-2xl shadow-sm border border-primary-100">
-                <div class="p-6 border-b border-primary-100">
-                    <div class="flex items-center justify-between">
-                        <h2 class="text-lg font-semibold text-primary-900 flex items-center gap-2">
-                            <span class="w-8 h-8 rounded-lg bg-primary-100 flex items-center justify-center">
-                                <svg class="w-4 h-4 text-primary-600" fill="none" viewBox="0 0 24 24"
-                                    stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                </svg>
-                            </span>
-                            Recent Activity
-                        </h2>
-                        <a href="{{ route('activity-logs.index') }}"
-                            class="text-xs text-gold-500 hover:text-gold-600 font-medium transition-colors">
-                            View All →
-                        </a>
-                    </div>
+            <div class="border-b border-gray-100 p-5 lg:border-0">
+                <p class="eyebrow">Files</p>
+                <p class="mt-2 text-3xl font-semibold tracking-tight text-gray-900 tabular"
+                    x-text="fmt(stats.total_files)">{{ number_format($stats['total_files']) }}</p>
+                <p class="mt-1 text-xs text-gray-500">
+                    <span class="font-medium text-primary-700" x-text="'+' + fmt(stats.uploads_this_week)"></span>
+                    this week
+                </p>
+            </div>
+            <div class="border-r border-gray-100 p-5 lg:border-0">
+                <p class="eyebrow">Active users</p>
+                <p class="mt-2 text-3xl font-semibold tracking-tight text-gray-900 tabular"
+                    x-text="fmt(stats.total_users)">{{ number_format($stats['total_users']) }}</p>
+                <p class="mt-1 text-xs text-gray-500">With sign-in access</p>
+            </div>
+            <div class="p-5">
+                <div class="flex items-baseline justify-between gap-2">
+                    <p class="eyebrow">Storage</p>
+                    <p class="text-xs text-gray-500 tabular" x-text="stats.storage_usage.percentage + '%'"></p>
                 </div>
-                <div class="p-6">
-                    <template x-if="stats.recent_activities.length === 0">
-                        <div class="text-center py-8">
-                            <svg class="w-12 h-12 text-primary-200 mx-auto mb-3" fill="none" viewBox="0 0 24 24"
-                                stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-                                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                            <p class="text-primary-400 text-sm">No recent activity</p>
-                        </div>
-                    </template>
-                    <div class="flow-root">
-                        <ul role="list" class="-mb-8">
-                            <template x-for="(activity, index) in stats.recent_activities" :key="activity.id">
-                                <li>
-                                    <div class="relative pb-8">
-                                        <!-- Timeline Line -->
-                                        <span x-show="index !== stats.recent_activities.length - 1"
-                                            class="absolute top-10 left-5 -ml-px h-full w-0.5 bg-primary-100"></span>
+                <p class="mt-2 text-3xl font-semibold tracking-tight text-gray-900 tabular"
+                    x-text="stats.storage_usage.formatted_used">{{ $stats['storage_usage']['formatted_used'] }}</p>
+                <div class="mt-2.5 h-1.5 w-full overflow-hidden rounded-full bg-gray-100" role="progressbar"
+                    :aria-valuenow="stats.storage_usage.percentage" aria-valuemin="0" aria-valuemax="100">
+                    <div class="h-full rounded-full transition-[width] duration-500"
+                        :class="stats.storage_usage.percentage >= 85 ? 'bg-red-600' : (stats.storage_usage.percentage >= 70 ? 'bg-gold-500' : 'bg-primary-600')"
+                        :style="'width:' + Math.max(stats.storage_usage.percentage, 0.5) + '%'"></div>
+                </div>
+                <p class="mt-1.5 text-xs text-gray-500">of <span x-text="stats.storage_usage.formatted_total"></span>
+                    · <a href="{{ route('backup.index') }}" class="font-medium text-primary-700 hover:underline">Backup</a>
+                </p>
+            </div>
+        </section>
 
-                                        <div class="relative flex gap-4">
-                                            <!-- Avatar/Icon -->
-                                            <div class="flex-shrink-0">
-                                                <!-- Folder Created -->
-                                                <span
-                                                    x-show="activity.description?.includes('Folder') || activity.description?.includes('folder')"
-                                                    class="flex h-10 w-10 items-center justify-center rounded-full bg-gold-100 ring-8 ring-white">
-                                                    <svg class="h-5 w-5 text-gold-600" fill="currentColor"
-                                                        viewBox="0 0 20 20">
-                                                        <path
-                                                            d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" />
-                                                    </svg>
-                                                </span>
-                                                <!-- File Uploaded -->
-                                                <span
-                                                    x-show="activity.description?.includes('upload') || activity.description?.includes('File')"
-                                                    class="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 ring-8 ring-white">
-                                                    <svg class="h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24"
-                                                        stroke="currentColor">
-                                                        <path stroke-linecap="round" stroke-linejoin="round"
-                                                            stroke-width="2"
-                                                            d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                                                    </svg>
-                                                </span>
-                                                <!-- Deleted -->
-                                                <span x-show="activity.description?.includes('delet')"
-                                                    class="flex h-10 w-10 items-center justify-center rounded-full bg-red-100 ring-8 ring-white">
-                                                    <svg class="h-5 w-5 text-red-600" fill="none" viewBox="0 0 24 24"
-                                                        stroke="currentColor">
-                                                        <path stroke-linecap="round" stroke-linejoin="round"
-                                                            stroke-width="2"
-                                                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                                    </svg>
-                                                </span>
-                                                <!-- Downloaded -->
-                                                <span x-show="activity.description?.includes('download')"
-                                                    class="flex h-10 w-10 items-center justify-center rounded-full bg-green-100 ring-8 ring-white">
-                                                    <svg class="h-5 w-5 text-green-600" fill="none"
-                                                        viewBox="0 0 24 24" stroke="currentColor">
-                                                        <path stroke-linecap="round" stroke-linejoin="round"
-                                                            stroke-width="2"
-                                                            d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                                    </svg>
-                                                </span>
-                                                <!-- User Activity -->
-                                                <span
-                                                    x-show="activity.description?.includes('User') || activity.description?.includes('user') || activity.description?.includes('account')"
-                                                    class="flex h-10 w-10 items-center justify-center rounded-full bg-purple-100 ring-8 ring-white">
-                                                    <svg class="h-5 w-5 text-purple-600" fill="none"
-                                                        viewBox="0 0 24 24" stroke="currentColor">
-                                                        <path stroke-linecap="round" stroke-linejoin="round"
-                                                            stroke-width="2"
-                                                            d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                                                    </svg>
-                                                </span>
-                                                <!-- Default -->
-                                                <span
-                                                    x-show="!activity.description?.includes('Folder') && !activity.description?.includes('upload') && !activity.description?.includes('File') && !activity.description?.includes('delet') && !activity.description?.includes('download') && !activity.description?.includes('User') && !activity.description?.includes('user') && !activity.description?.includes('account')"
-                                                    class="flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 ring-8 ring-white">
-                                                    <svg class="h-5 w-5 text-gray-600" fill="none" viewBox="0 0 24 24"
-                                                        stroke="currentColor">
-                                                        <path stroke-linecap="round" stroke-linejoin="round"
-                                                            stroke-width="2"
-                                                            d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                                    </svg>
-                                                </span>
-                                            </div>
+        <div class="grid grid-cols-1 gap-6 xl:grid-cols-3">
+            <div class="space-y-6 xl:col-span-2">
 
-                                            <!-- Activity Content -->
-                                            <div class="flex-1 min-w-0 pt-1.5">
-                                                <div class="flex items-start justify-between gap-2">
-                                                    <div class="min-w-0">
-                                                        <!-- User Name -->
-                                                        <p class="text-sm font-medium text-primary-900 truncate"
-                                                            x-text="activity.causer_name || 'System'"></p>
-                                                        <!-- Activity Description -->
-                                                        <p class="text-sm text-primary-500 mt-0.5"
-                                                            x-text="activity.description"></p>
-                                                    </div>
-                                                    <!-- Time -->
-                                                    <time class="flex-shrink-0 text-xs text-primary-400 whitespace-nowrap"
-                                                        x-text="new Date(activity.created_at).toLocaleString()"></time>
-                                                </div>
-
-                                                <!-- Subject Badge -->
-                                                <div class="mt-2" x-show="activity.subject_name">
-                                                    <span
-                                                        class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-primary-50 text-xs text-primary-600">
-                                                        <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24"
-                                                            stroke="currentColor">
-                                                            <path stroke-linecap="round" stroke-linejoin="round"
-                                                                stroke-width="2"
-                                                                d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                                                        </svg>
-                                                        <span x-text="activity.subject_name"></span>
-                                                    </span>
-                                                </div>
-                                            </div>
+                <!-- Upload volume, last 30 days -->
+                <section class="panel">
+                    <div class="panel-header">
+                        <h2 class="panel-title">Uploads, last 30 days</h2>
+                        <p class="text-xs text-gray-500"><span class="font-medium text-gray-900 tabular">{{ number_format($monthTotal) }}</span> files</p>
+                    </div>
+                    <div class="px-5 pb-4 pt-5">
+                        @if ($monthTotal === 0)
+                            <p class="py-10 text-center text-sm text-gray-500">Nothing uploaded in the last 30 days.</p>
+                        @else
+                            <div class="flex h-36 items-end gap-[3px]" role="img"
+                                aria-label="Daily uploads over the last 30 days, {{ $monthTotal }} in total">
+                                @foreach ($uploadsByDay as $day)
+                                    <div class="group relative flex h-full flex-1 items-end">
+                                        <div class="w-full rounded-t-[2px] {{ $loop->last ? 'bg-gold-500' : 'bg-primary-600/80 group-hover:bg-primary-700' }}"
+                                            style="height: {{ $day['count'] ? max(3, round($day['count'] / $maxDay * 100)) : 0 }}%"></div>
+                                        @if (!$day['count'])
+                                            <div class="absolute inset-x-0 bottom-0 h-px bg-gray-200"></div>
+                                        @endif
+                                        <div class="pointer-events-none absolute bottom-full left-1/2 z-10 mb-1.5 -translate-x-1/2 whitespace-nowrap rounded bg-gray-900 px-2 py-1 text-[11px] text-white opacity-0 transition-opacity group-hover:opacity-100">
+                                            {{ $day['label'] }} · {{ $day['count'] }} {{ Str::plural('file', $day['count']) }}
                                         </div>
                                     </div>
-                                </li>
-                            </template>
-                        </ul>
+                                @endforeach
+                            </div>
+                            <div class="mt-2 flex justify-between text-[11px] text-gray-400 tabular">
+                                <span>{{ $uploadsByDay[0]['label'] }}</span>
+                                <span>{{ $uploadsByDay[14]['label'] }}</span>
+                                <span>Today</span>
+                            </div>
+                        @endif
                     </div>
-                </div>
+                </section>
+
+                <!-- Recent uploads -->
+                <section class="panel overflow-hidden">
+                    <div class="panel-header">
+                        <h2 class="panel-title">Recent uploads</h2>
+                        <a href="{{ route('drive.index') }}" class="text-xs font-medium text-primary-700 hover:underline">Open Drive</a>
+                    </div>
+
+                    <template x-if="stats.recent_uploads.length === 0">
+                        <div class="px-5 py-12 text-center">
+                            <p class="text-sm font-medium text-gray-900">No files yet</p>
+                            <p class="mt-1 text-sm text-gray-500">Uploads will appear here as soon as someone adds a record.</p>
+                        </div>
+                    </template>
+
+                    <div x-show="stats.recent_uploads.length" class="overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead>
+                                <tr class="border-b border-gray-100 text-left text-xs text-gray-500">
+                                    <th scope="col" class="px-5 py-2.5 font-medium">Name</th>
+                                    <th scope="col" class="hidden px-3 py-2.5 font-medium md:table-cell">Uploaded by</th>
+                                    <th scope="col" class="hidden px-3 py-2.5 text-right font-medium sm:table-cell">Size</th>
+                                    <th scope="col" class="px-3 py-2.5 text-right font-medium">Date</th>
+                                    <th scope="col" class="px-5 py-2.5"><span class="sr-only">Actions</span></th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-100">
+                                <template x-for="file in stats.recent_uploads" :key="file.id">
+                                    <tr class="group hover:bg-gray-50/70">
+                                        <td class="w-full max-w-0 px-5 py-2.5">
+                                            <div class="flex items-center gap-3">
+                                                <span class="inline-flex h-6 w-11 shrink-0 items-center justify-center rounded font-mono text-[10px] font-medium uppercase"
+                                                    :class="extClass(file.extension)" x-text="(file.extension || 'file').slice(0, 4)"></span>
+                                                <span class="truncate font-medium text-gray-900" :title="file.original_name"
+                                                    x-text="file.original_name"></span>
+                                            </div>
+                                        </td>
+                                        <td class="hidden whitespace-nowrap px-3 py-2.5 text-gray-600 md:table-cell"
+                                            x-text="file.uploader || '—'"></td>
+                                        <td class="hidden whitespace-nowrap px-3 py-2.5 text-right text-gray-600 tabular sm:table-cell"
+                                            x-text="file.formatted_size"></td>
+                                        <td class="whitespace-nowrap px-3 py-2.5 text-right text-gray-600 tabular"
+                                            x-text="shortDate(file.created_at)"></td>
+                                        <td class="whitespace-nowrap px-5 py-2.5 text-right">
+                                            <a :href="driveBaseUrl + '/download/' + file.id"
+                                                class="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-primary-700"
+                                                :aria-label="'Download ' + file.original_name" title="Download">
+                                                <svg class="inline h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                                        d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                                                </svg>
+                                            </a>
+                                        </td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
             </div>
+
+            <!-- Activity feed -->
+            <section class="panel flex flex-col xl:max-h-[calc(100vh-10rem)] xl:sticky xl:top-20">
+                <div class="panel-header">
+                    <h2 class="panel-title">Activity</h2>
+                    @if ($canSeeLogs)
+                        <a href="{{ route('activity-logs.index') }}" class="text-xs font-medium text-primary-700 hover:underline">Full log</a>
+                    @endif
+                </div>
+
+                <template x-if="stats.recent_activities.length === 0">
+                    <p class="px-5 py-12 text-center text-sm text-gray-500">No activity recorded yet.</p>
+                </template>
+
+                <ol class="flex-1 overflow-y-auto px-5 py-2">
+                    <template x-for="(activity, i) in stats.recent_activities" :key="activity.id">
+                        <li class="relative flex gap-3 py-3">
+                            <span x-show="i !== stats.recent_activities.length - 1"
+                                class="absolute left-[13px] top-10 bottom-0 w-px bg-gray-100" aria-hidden="true"></span>
+                            <span class="relative flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold"
+                                :class="activity.causer_name === 'System' ? 'bg-gray-100 text-gray-500' : 'bg-primary-50 text-primary-800 ring-1 ring-primary-100'"
+                                x-text="activity.causer_initials"></span>
+                            <div class="min-w-0 flex-1 pt-0.5">
+                                <p class="text-sm leading-snug text-gray-600">
+                                    <span class="font-medium text-gray-900" x-text="activity.causer_name"></span>
+                                    <span x-text="lowerFirst(activity.description)"></span>
+                                </p>
+                                <p x-show="activity.subject_name" class="mt-1 truncate text-xs text-gray-500">
+                                    <span class="text-gray-400" x-text="activity.subject_type"></span>
+                                    <span class="text-gray-700" x-text="activity.subject_name"></span>
+                                </p>
+                                <time class="mt-1 block text-[11px] text-gray-400" :datetime="activity.created_at"
+                                    :title="new Date(activity.created_at).toLocaleString()"
+                                    x-text="timeAgo(activity.created_at)"></time>
+                            </div>
+                        </li>
+                    </template>
+                </ol>
+            </section>
         </div>
     </div>
 
@@ -312,35 +222,79 @@
         <script>
             function dashboardData() {
                 return {
-                    stats: {
-                        total_folders: {{ $stats['total_folders'] }},
-                        total_files: {{ $stats['total_files'] }},
-                        total_users: {{ $stats['total_users'] }},
-                        storage_usage: @json($stats['storage_usage']),
-                        recent_uploads: @json($stats['recent_uploads']),
-                        recent_activities: @json($stats['recent_activities']),
-                    },
-
+                    stats: @json($stats),
+                    loading: false,
+                    updatedAt: new Date(),
+                    now: Date.now(),
                     driveBaseUrl: @json(parse_url(url('/drive'), PHP_URL_PATH)),
                     statsUrl: @json(parse_url(route('dashboard.stats'), PHP_URL_PATH)),
 
-                    async init() {
-                        // Auto-refresh every 30 seconds
+                    init() {
                         setInterval(() => this.refreshData(), 30000);
+                        setInterval(() => this.now = Date.now(), 15000);
+                    },
+
+                    get updatedLabel() {
+                        return this.updatedAt.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
                     },
 
                     async refreshData() {
+                        if (this.loading || document.hidden) return;
+                        this.loading = true;
                         try {
-                            const response = await fetch(this.statsUrl);
-                            const data = await response.json();
-                            this.stats = data;
+                            const response = await fetch(this.statsUrl, { headers: { 'Accept': 'application/json' } });
+                            if (!response.ok) throw new Error(response.status);
+                            this.stats = await response.json();
+                            this.updatedAt = new Date();
                         } catch (error) {
                             console.error('Failed to refresh dashboard data:', error);
+                        } finally {
+                            this.loading = false;
                         }
-                    }
+                    },
+
+                    fmt(n) {
+                        return Number(n || 0).toLocaleString();
+                    },
+
+                    shortDate(value) {
+                        const d = new Date(value);
+                        const sameYear = d.getFullYear() === new Date().getFullYear();
+                        return d.toLocaleDateString([], sameYear ? { month: 'short', day: 'numeric' } : { year: 'numeric', month: 'short', day: 'numeric' });
+                    },
+
+                    timeAgo(value) {
+                        const seconds = Math.round((this.now - new Date(value).getTime()) / 1000);
+                        if (seconds < 60) return 'just now';
+                        const minutes = Math.round(seconds / 60);
+                        if (minutes < 60) return minutes + ' min ago';
+                        const hours = Math.round(minutes / 60);
+                        if (hours < 24) return hours + (hours === 1 ? ' hour ago' : ' hours ago');
+                        const days = Math.round(hours / 24);
+                        if (days < 7) return days === 1 ? 'yesterday' : days + ' days ago';
+                        return this.shortDate(value);
+                    },
+
+                    lowerFirst(text) {
+                        if (!text) return '';
+                        return text.charAt(0).toLowerCase() + text.slice(1);
+                    },
+
+                    extClass(ext) {
+                        const groups = {
+                            'bg-red-50 text-red-700': ['pdf'],
+                            'bg-sky-50 text-sky-700': ['doc', 'docx', 'odt', 'rtf', 'txt'],
+                            'bg-emerald-50 text-emerald-700': ['xls', 'xlsx', 'csv', 'ods'],
+                            'bg-orange-50 text-orange-700': ['ppt', 'pptx', 'odp'],
+                            'bg-violet-50 text-violet-700': ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp', 'tif', 'tiff'],
+                        };
+                        for (const [cls, list] of Object.entries(groups)) {
+                            if (list.includes(ext)) return cls;
+                        }
+                        return 'bg-gray-100 text-gray-600';
+                    },
                 }
             }
         </script>
     @endpush
-
 @endsection
