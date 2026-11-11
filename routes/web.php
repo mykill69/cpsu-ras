@@ -9,6 +9,11 @@ use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\ActivityLogController;
 use App\Http\Controllers\BackupController;
 
+// Site root: signed-in users go to the dashboard, everyone else to the login page.
+Route::get('/', fn () => auth()->check()
+    ? redirect()->route('dashboard')
+    : redirect()->route('login'));
+
 Route::middleware(['auth', 'verified'])->group(function () {
     
     // Dashboard

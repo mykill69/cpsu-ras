@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Auth;
 
+use App\Services\Turnstile;
 use Illuminate\Auth\Events\Lockout;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Auth;
@@ -11,6 +12,11 @@ use Illuminate\Validation\ValidationException;
 
 class LoginRequest extends FormRequest
 {
+    /**
+     * Always send failures back to the form rather than the session's "previous URL".
+     */
+    protected $redirectRoute = 'login';
+
     /**
      * Determine if the user is authorized to make this request.
      */
@@ -29,6 +35,14 @@ class LoginRequest extends FormRequest
         return [
             'email' => ['required', 'string', 'email'],
             'password' => ['required', 'string'],
+            'cf-turnstile-response' => Turnstile::enabled() ? ['required', 'string'] : ['nullable'],
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'cf-turnstile-response.required' => 'Please complete the security check.',
         ];
     }
 
@@ -41,12 +55,29 @@ class LoginRequest extends FormRequest
     {
         $this->ensureIsNotRateLimited();
 
+        // Honeypot: a hidden field people never see; bots that fill every input do.
+        if (filled($this->input('website'))) {
+            RateLimiter::hit($this->throttleKey());
+
+            throw ValidationException::withMessages([
+                'email' => trans('auth.failed'),
+            ])->redirectTo(route('login'));
+        }
+
+        if (Turnstile::enabled() && ! Turnstile::verify($this->input('cf-turnstile-response'), $this->ip())) {
+            RateLimiter::hit($this->throttleKey());
+
+            throw ValidationException::withMessages([
+                'cf-turnstile-response' => 'The security check failed. Please try again.',
+            ])->redirectTo(route('login'));
+        }
+
         if (! Auth::attempt($this->only('email', 'password'), $this->boolean('remember'))) {
             RateLimiter::hit($this->throttleKey());
 
             throw ValidationException::withMessages([
                 'email' => trans('auth.failed'),
-            ]);
+            ])->redirectTo(route('login'));
         }
 
         RateLimiter::clear($this->throttleKey());
@@ -72,7 +103,7 @@ class LoginRequest extends FormRequest
                 'seconds' => $seconds,
                 'minutes' => ceil($seconds / 60),
             ]),
-        ]);
+        ])->redirectTo(route('login'));
     }
 
     /**

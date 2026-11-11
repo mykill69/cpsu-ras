@@ -31,4 +31,14 @@ return [
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
 
+
+    /*
+    | Cloudflare Turnstile on the login form. Get keys (free) at
+    | dash.cloudflare.com > Turnstile. Leaving the keys empty turns the check off.
+    */
+    'turnstile' => [
+        'site_key' => env('TURNSTILE_SITE_KEY'),
+        'secret_key' => env('TURNSTILE_SECRET_KEY'),
+    ],
+
 ];

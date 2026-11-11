@@ -1,0 +1,23 @@
+# Project root guard.
+# Only public/ is meant to be reachable from the web. This sends every other
+# request (the folder listing, .env, .git, vendor/, storage/, composer.json …)
+# to the matching path under public/, where Laravel answers it: the site root
+# goes to the app, and anything else is a normal 404.
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Work out the URL prefix this folder is served under (e.g. /cpsu-ras/),
+    # so the redirect is correct whatever the folder is called.
+    RewriteCond %{REQUEST_URI}::$1 ^(.*?/)(.*)::\2$
+    RewriteRule ^(.*)$ - [E=RAS_BASE:%1]
+
+    RewriteRule ^(?!public(?:/|$))(.*)$ %{ENV:RAS_BASE}public/$1 [R=301,L]
+</IfModule>
+
+# If mod_rewrite is missing, refuse everything here rather than expose files.
+<IfModule !mod_rewrite.c>
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+</IfModule>

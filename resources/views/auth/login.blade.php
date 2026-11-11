@@ -9,6 +9,14 @@
     <link rel="shortcut icon" href="{{ asset('images/cpsu-logo.png') }}" type="image/png">
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    @if (\App\Services\Turnstile::enabled())
+        <script>
+            // Turnstile calls these by name; Alpine on the form listens for the events.
+            window.onTurnstilePassed = () => window.dispatchEvent(new CustomEvent('turnstile-passed'));
+            window.onTurnstileReset = () => window.dispatchEvent(new CustomEvent('turnstile-reset'));
+        </script>
+        <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+    @endif
 
     <style>
         /* Faint ledger rules — a nod to the paper registers this system replaces */
@@ -82,8 +90,11 @@
                     </div>
                 @endif
 
-                <form method="POST" action="{{ route('login') }}" class="mt-8 space-y-5" x-data="{ submitting: false }"
-                    @submit="submitting = true">
+                <form method="POST" action="{{ route('login') }}" class="mt-8 space-y-5"
+                    x-data="{ submitting: false, human: {{ \App\Services\Turnstile::enabled() ? 'false' : 'true' }} }"
+                    @turnstile-passed.window="human = true"
+                    @turnstile-reset.window="human = false"
+                    @submit="if (!human) { $event.preventDefault(); return; } submitting = true">
                     @csrf
 
                     <div>
@@ -118,13 +129,32 @@
                         @enderror
                     </div>
 
+                    @if (\App\Services\Turnstile::enabled())
+                        <div>
+                            <div class="cf-turnstile min-h-[65px]" data-sitekey="{{ \App\Services\Turnstile::siteKey() }}"
+                                data-theme="light" data-size="flexible" data-action="login"
+                                data-callback="onTurnstilePassed" data-expired-callback="onTurnstileReset"
+                                data-error-callback="onTurnstileReset" data-timeout-callback="onTurnstileReset"></div>
+                            <p x-show="!human" class="mt-1.5 text-xs text-gray-500">Complete the check above to enable sign in.</p>
+                            @error('cf-turnstile-response')
+                                <p id="turnstile-error" class="mt-1.5 text-sm text-red-700" role="alert">{{ $message }}</p>
+                            @enderror
+                        </div>
+                    @endif
+
+                    {{-- Honeypot: hidden from people and screen readers; bots tend to fill it. --}}
+                    <div class="absolute -left-[9999px] h-px w-px overflow-hidden" aria-hidden="true">
+                        <label for="website">Website</label>
+                        <input id="website" type="text" name="website" tabindex="-1" autocomplete="off">
+                    </div>
+
                     <label for="remember_me" class="flex w-fit cursor-pointer items-center gap-2.5 text-sm text-gray-600">
                         <input id="remember_me" type="checkbox" name="remember"
                             class="h-4 w-4 rounded border-gray-300 text-primary-700 focus:ring-primary-600">
                         Keep me signed in on this device
                     </label>
 
-                    <button type="submit" class="btn-primary w-full py-2.5 text-[15px]" :disabled="submitting">
+                    <button type="submit" class="btn-primary w-full py-2.5 text-[15px]" :disabled="submitting || !human">
                         <svg x-show="submitting" x-cloak class="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
                             <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-opacity=".25" stroke-width="3" />
                             <path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" stroke-width="3" stroke-linecap="round" />
