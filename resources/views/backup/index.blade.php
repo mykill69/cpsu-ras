@@ -232,6 +232,17 @@
 
     @push('scripts')
         <script>
+            // Safely parse a JSON response; gives a readable error when the server
+            // returns an HTML page (404/419/500) instead of JSON.
+            async function readBackupJson(response) {
+                const text = await response.text();
+                try {
+                    return JSON.parse(text);
+                } catch (e) {
+                    throw new Error('Server returned HTTP ' + response.status + '. Please refresh the page and try again.');
+                }
+            }
+
             function backupManager() {
                 return {
                     async syncAll() {
@@ -253,14 +264,17 @@
                             });
                             const csrf = document.querySelector('meta[name="csrf-token"]')?.content;
                             try {
-                                const response = await fetch('{{ route('backup.sync-all') }}', {
+                                const response = await fetch(@json(parse_url(route('backup.sync-all'), PHP_URL_PATH)), {
                                     method: 'POST',
                                     headers: {
                                         'X-CSRF-TOKEN': csrf,
                                         'Accept': 'application/json'
                                     }
                                 });
-                                const data = await response.json();
+                                const data = await readBackupJson(response);
+                                if (!data.success) {
+                                    throw new Error(data.message || 'Sync failed.');
+                                }
                                 Swal.fire({
                                     icon: 'success',
                                     title: 'Done!',
@@ -272,7 +286,7 @@
                                 Swal.fire({
                                     icon: 'error',
                                     title: 'Error',
-                                    text: 'Sync failed. Please try again.',
+                                    text: 'Sync failed: ' + e.message,
                                     confirmButtonColor: '#1a5632'
                                 });
                             }
@@ -289,7 +303,7 @@
                 });
                 const csrf = document.querySelector('meta[name="csrf-token"]')?.content;
                 try {
-                    const response = await fetch(`/backup/sync/${fileId}`, {
+                    const response = await fetch(@json(parse_url(url('/backup'), PHP_URL_PATH)) + '/sync/' + fileId, {
                         method: 'POST',
                         headers: {
                             'X-CSRF-TOKEN': csrf,
@@ -297,7 +311,7 @@
                             'Content-Type': 'application/json'
                         }
                     });
-                    const data = await response.json();
+                    const data = await readBackupJson(response);
                     if (data.success) {
                         Swal.fire({
                             icon: 'success',
