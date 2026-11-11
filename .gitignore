@@ -1,5 +1,5 @@
 /node_modules
-/public/build
+# /public/build  (committed on purpose: the live server has no Node.js, so it needs the compiled assets)
 /public/hot
 /public/storage
 /storage/*.key
