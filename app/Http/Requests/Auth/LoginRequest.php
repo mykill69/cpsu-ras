@@ -80,7 +80,21 @@ class LoginRequest extends FormRequest
             ])->redirectTo(route('login'));
         }
 
+        $user = Auth::user();
+
+        // Deactivated accounts can't sign in, even with the right password.
+        if (! $user->is_active) {
+            Auth::guard('web')->logout();
+            RateLimiter::hit($this->throttleKey());
+
+            throw ValidationException::withMessages([
+                'email' => 'This account has been deactivated. Contact the Records Office.',
+            ])->redirectTo(route('login'));
+        }
+
         RateLimiter::clear($this->throttleKey());
+
+        $user->forceFill(['last_login_at' => now()])->saveQuietly();
     }
 
     /**

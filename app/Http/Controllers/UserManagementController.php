@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\User;
 use App\Models\Department;
+use App\Models\User;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 use Spatie\Permission\Models\Role;
 
@@ -16,63 +18,84 @@ class UserManagementController extends Controller
         $this->middleware(['auth', 'can:manage-users']);
     }
 
-    private function isAdmin(): bool
-    {
-        return auth()->user()->roles->contains('name', 'administrator');
-    }
+    /* ------------------------------------------------------------------ */
+    /*  List                                                               */
+    /* ------------------------------------------------------------------ */
 
     public function index(Request $request)
     {
-        $query = User::with(['roles', 'department'])
-            ->when($request->search, function($q) use ($request) {
-                $q->where(function($query) use ($request) {
-                    $query->where('first_name', 'like', "%{$request->search}%")
-                          ->orWhere('last_name', 'like', "%{$request->search}%")
-                          ->orWhere('email', 'like', "%{$request->search}%")
-                          ->orWhere('position', 'like', "%{$request->search}%");
+        $search = trim((string) $request->query('search', ''));
+        $status = (string) $request->query('status', '');
+        $sortable = ['name' => 'first_name', 'last_login' => 'last_login_at', 'created' => 'created_at'];
+        $sort = array_key_exists((string) $request->query('sort'), $sortable) ? (string) $request->query('sort') : 'name';
+        $direction = $request->query('direction') === 'desc' ? 'desc' : 'asc';
+
+        $users = User::with(['roles', 'department'])
+            ->when($status === 'deleted', fn ($q) => $q->onlyTrashed())
+            ->when($status === 'active', fn ($q) => $q->where('is_active', true))
+            ->when($status === 'inactive', fn ($q) => $q->where('is_active', false))
+            ->when($search !== '', function ($q) use ($search) {
+                $like = '%' . addcslashes($search, '%_\\') . '%';
+                $q->where(function ($q) use ($like) {
+                    $q->where('first_name', 'like', $like)
+                        ->orWhere('last_name', 'like', $like)
+                        ->orWhereRaw("CONCAT(first_name, ' ', last_name) LIKE ?", [$like])
+                        ->orWhere('email', 'like', $like)
+                        ->orWhere('position', 'like', $like);
                 });
             })
-            ->when($request->role, function($q) use ($request) {
-                $q->role($request->role);
-            })
-            ->when($request->department, function($q) use ($request) {
-                $q->where('department_id', $request->department);
-            })
-            ->when($request->status, function($q) use ($request) {
-                $q->where('is_active', $request->status === 'active');
-            });
+            ->when($request->query('role'), fn ($q, $role) => $q->role($role))
+            ->when($request->query('department'), fn ($q, $dept) => $q->where('department_id', $dept))
+            ->orderBy($sortable[$sort], $direction)
+            ->when($sort === 'name', fn ($q) => $q->orderBy('last_name', $direction))
+            ->orderBy('id')
+            ->paginate(15)
+            ->withPath(route('users.index'));
 
-        $users = $query->paginate(15);
-        $roles = Role::all();
-        $departments = Department::where('is_active', true)->get();
+        $counts = [
+            '' => User::count(),
+            'active' => User::where('is_active', true)->count(),
+            'inactive' => User::where('is_active', false)->count(),
+            'deleted' => User::onlyTrashed()->count(),
+        ];
+
+        $view = compact('users', 'sort', 'direction', 'status', 'counts');
 
         if ($request->ajax()) {
-            return view('users.partials.table', compact('users'));
+            return view('users.partials.table', $view);
         }
 
-        return view('users.index', compact('users', 'roles', 'departments'));
+        return view('users.index', $view + [
+            'roles' => Role::orderBy('name')->get(),
+            'departments' => Department::where('is_active', true)->orderBy('name')->get(),
+        ]);
     }
 
-    public function store(Request $request)
+    public function edit(Request $request, User $user)
     {
-        $validated = $request->validate([
-            'first_name' => 'required|string|max:255',
-            'last_name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:users',
-            'password' => ['required', 'min:8'],
-            'role' => 'required|exists:roles,name',
-            'department_id' => 'required|exists:departments,id',
-            'position' => 'required|string|max:255',
-        ]);
+        if (! $request->ajax()) {
+            return redirect()->route('users.index');
+        }
 
-        if ($validated['role'] === 'administrator' && !$this->isAdmin()) {
-            return response()->json(['success' => false, 'message' => 'Only administrators can create admin users.'], 403);
+        return response()->json(['success' => true, 'user' => $this->payload($user)]);
+    }
+
+    /* ------------------------------------------------------------------ */
+    /*  Create / update                                                    */
+    /* ------------------------------------------------------------------ */
+
+    public function store(Request $request): JsonResponse
+    {
+        $validated = $request->validate($this->rules());
+
+        if ($validated['role'] === 'administrator' && ! $this->isAdmin()) {
+            return $this->fail('Only administrators can create administrator accounts.');
         }
 
         $user = User::create([
             'first_name' => $validated['first_name'],
             'last_name' => $validated['last_name'],
-            'email' => $validated['email'],
+            'email' => strtolower($validated['email']),
             'password' => Hash::make($validated['password']),
             'department_id' => $validated['department_id'],
             'position' => $validated['position'],
@@ -81,126 +104,195 @@ class UserManagementController extends Controller
 
         $user->assignRole($validated['role']);
 
-        activity()
-            ->performedOn($user)
-            ->causedBy(auth()->user())
-            ->withProperties(['action' => 'created', 'user_name' => $user->name, 'role' => $validated['role']])
-            ->log('User account created');
+        $this->log($user, 'created', 'User account created', ['role' => $validated['role']]);
 
-        return response()->json(['success' => true, 'message' => 'User created successfully']);
+        return response()->json(['success' => true, 'message' => "{$user->name} was added."]);
     }
 
-    public function edit(Request $request, User $user)
+    public function update(Request $request, User $user): JsonResponse
     {
-        if ($request->ajax()) {
-            return response()->json([
-                'success' => true,
-                'user' => $user->load('roles')
-            ]);
-        }
-        
-        return view('users.edit', compact('user'));
-    }
-
-    public function update(Request $request, User $user)
-    {
-        $validated = $request->validate([
-            'first_name' => 'required|string|max:255',
-            'last_name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:users,email,' . $user->id,
-            'password' => 'nullable|min:8',
-            'role' => 'required|exists:roles,name',
-            'department_id' => 'required|exists:departments,id',
-            'position' => 'required|string|max:255',
-        ]);
-
-        if ($validated['role'] === 'administrator' && !$this->isAdmin()) {
-            return response()->json(['success' => false, 'message' => 'Only administrators can assign admin role.'], 403);
+        if ($denied = $this->guardTarget($user)) {
+            return $denied;
         }
 
-        if ($user->hasRole('administrator') && $validated['role'] !== 'administrator' && User::role('administrator')->count() <= 1) {
-            return response()->json(['success' => false, 'message' => 'Cannot change the role of the last administrator.'], 403);
+        $validated = $request->validate($this->rules($user));
+        $isSelf = $user->is(auth()->user());
+        $currentRole = $user->roles->first()?->name;
+
+        if ($isSelf && $validated['role'] !== $currentRole) {
+            return $this->fail('You cannot change your own role.');
         }
 
-        $user->update([
+        if ($validated['role'] === 'administrator' && ! $this->isAdmin()) {
+            return $this->fail('Only administrators can assign the administrator role.');
+        }
+
+        if ($currentRole === 'administrator' && $validated['role'] !== 'administrator' && $this->activeAdminCount() <= 1) {
+            return $this->fail('This is the last administrator. Make someone else an administrator first.');
+        }
+
+        $user->fill([
             'first_name' => $validated['first_name'],
             'last_name' => $validated['last_name'],
-            'email' => $validated['email'],
+            'email' => strtolower($validated['email']),
             'department_id' => $validated['department_id'],
             'position' => $validated['position'],
         ]);
 
-        if (!empty($validated['password'])) {
-            $user->update(['password' => Hash::make($validated['password'])]);
+        $passwordChanged = filled($validated['password'] ?? null);
+        if ($passwordChanged) {
+            $user->password = Hash::make($validated['password']);
+            $user->remember_token = null; // sign out "remember me" sessions elsewhere
         }
 
+        $user->save();
         $user->syncRoles([$validated['role']]);
 
-        activity()
-            ->performedOn($user)
-            ->causedBy(auth()->user())
-            ->withProperties(['action' => 'updated', 'user_name' => $user->name])
-            ->log('User account updated');
+        $this->log($user, 'updated', 'User account updated', [
+            'role' => $validated['role'],
+            'password_changed' => $passwordChanged,
+        ]);
 
-        return response()->json(['success' => true, 'message' => 'User updated successfully']);
+        return response()->json(['success' => true, 'message' => "{$user->name} was updated."]);
     }
 
-    public function destroy(User $user)
+    /* ------------------------------------------------------------------ */
+    /*  Status / delete / restore                                          */
+    /* ------------------------------------------------------------------ */
+
+    public function toggleStatus(User $user): JsonResponse
     {
-        if ($user->id === auth()->id()) {
-            return response()->json(['success' => false, 'message' => 'You cannot delete your own account.'], 403);
+        if ($user->is(auth()->user())) {
+            return $this->fail('You cannot deactivate your own account.');
         }
 
-        if ($user->hasRole('administrator') && User::role('administrator')->count() <= 1) {
-            return response()->json(['success' => false, 'message' => 'Cannot delete the last administrator.'], 403);
+        if ($denied = $this->guardTarget($user)) {
+            return $denied;
         }
 
-        $userName = $user->name;
-        $user->delete();
-
-        activity()
-            ->performedOn($user)
-            ->causedBy(auth()->user())
-            ->withProperties(['action' => 'deleted', 'user_name' => $userName])
-            ->log('User account deleted');
-
-        return response()->json(['success' => true, 'message' => 'User deleted successfully']);
-    }
-
-    public function toggleStatus(User $user)
-    {
-        // Clear any output buffer to prevent "folder" prefix
-        if (ob_get_level() > 0) {
-            ob_end_clean();
-        }
-        
-        if ($user->id === auth()->id()) {
-            return response()->json([
-                'success' => false,
-                'message' => 'You cannot change your own status.'
-            ], 403);
+        if ($user->is_active && $user->hasRole('administrator') && $this->activeAdminCount() <= 1) {
+            return $this->fail('This is the last active administrator and cannot be deactivated.');
         }
 
-        if ($user->hasRole('administrator') && $user->is_active && User::role('administrator')->where('is_active', true)->count() <= 1) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Cannot deactivate the last active administrator.'
-            ], 403);
+        $user->is_active = ! $user->is_active;
+        if (! $user->is_active) {
+            $user->remember_token = null;
         }
+        $user->save();
 
-        $user->update(['is_active' => !$user->is_active]);
         $status = $user->is_active ? 'activated' : 'deactivated';
-
-        activity()
-            ->performedOn($user)
-            ->causedBy(auth()->user())
-            ->withProperties(['action' => $status, 'user_name' => $user->name])
-            ->log("User account {$status}");
+        $this->log($user, $status, "User account {$status}");
 
         return response()->json([
-            'success' => true, 
-            'message' => "User {$status} successfully",
-            'is_active' => $user->is_active
+            'success' => true,
+            'message' => $user->is_active
+                ? "{$user->name} can sign in again."
+                : "{$user->name} has been deactivated and signed out.",
+            'is_active' => $user->is_active,
         ]);
+    }
+
+    /** Soft delete: the account can be restored, and their files keep their owner. */
+    public function destroy(User $user): JsonResponse
+    {
+        if ($user->is(auth()->user())) {
+            return $this->fail('You cannot delete your own account.');
+        }
+
+        if ($denied = $this->guardTarget($user)) {
+            return $denied;
+        }
+
+        if ($user->hasRole('administrator') && $this->activeAdminCount() <= 1) {
+            return $this->fail('This is the last administrator and cannot be deleted.');
+        }
+
+        $user->forceFill(['is_active' => false, 'remember_token' => null])->save();
+        $user->delete();
+
+        $this->log($user, 'deleted', 'User account deleted');
+
+        return response()->json(['success' => true, 'message' => "{$user->name} was deleted. You can restore the account from the Deleted tab."]);
+    }
+
+    public function restore(User $user): JsonResponse
+    {
+        if ($denied = $this->guardTarget($user)) {
+            return $denied;
+        }
+
+        $user->restore();
+        $this->log($user, 'restored', 'User account restored');
+
+        return response()->json(['success' => true, 'message' => "{$user->name} was restored. The account is still deactivated; switch it on to let them sign in."]);
+    }
+
+    /* ------------------------------------------------------------------ */
+    /*  Helpers                                                            */
+    /* ------------------------------------------------------------------ */
+
+    private function rules(?User $user = null): array
+    {
+        $password = Password::min(8)->letters()->numbers();
+
+        return [
+            'first_name' => ['required', 'string', 'max:100'],
+            'last_name' => ['required', 'string', 'max:100'],
+            'email' => ['required', 'string', 'email', 'max:255',
+                // Deleted accounts still hold their email, so they can be restored.
+                Rule::unique('users', 'email')->ignore($user?->id)],
+            'password' => $user ? ['nullable', $password] : ['required', $password],
+            'role' => ['required', Rule::exists('roles', 'name')],
+            'department_id' => ['required', Rule::exists('departments', 'id')],
+            'position' => ['required', 'string', 'max:150'],
+        ];
+    }
+
+    private function isAdmin(): bool
+    {
+        return auth()->user()->hasRole('administrator');
+    }
+
+    /** Only administrators may change administrator accounts. */
+    private function guardTarget(User $user): ?JsonResponse
+    {
+        if ($user->hasRole('administrator') && ! $this->isAdmin()) {
+            return $this->fail('Only administrators can change administrator accounts.');
+        }
+
+        return null;
+    }
+
+    private function activeAdminCount(): int
+    {
+        return User::role('administrator')->where('is_active', true)->count();
+    }
+
+    private function fail(string $message, int $status = 403): JsonResponse
+    {
+        return response()->json(['success' => false, 'message' => $message], $status);
+    }
+
+    private function log(User $user, string $action, string $description, array $extra = []): void
+    {
+        activity()
+            ->performedOn($user)
+            ->causedBy(auth()->user())
+            ->withProperties(['action' => $action, 'user_name' => $user->name] + $extra)
+            ->log($description);
+    }
+
+    /** Data the edit form needs (no hashes or tokens). */
+    public static function payload(User $user): array
+    {
+        return [
+            'id' => $user->id,
+            'first_name' => $user->first_name,
+            'last_name' => $user->last_name,
+            'email' => $user->email,
+            'role' => $user->roles->first()?->name ?? '',
+            'department_id' => $user->department_id ? (string) $user->department_id : '',
+            'position' => $user->position ?? '',
+        ];
     }
 }

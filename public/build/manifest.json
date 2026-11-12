@@ -347,7 +347,7 @@
     "src": "node_modules/pdfjs-dist/build/pdf.worker.min.js?url"
   },
   "resources/css/app.css": {
-    "file": "assets/app-b7ebac49.css",
+    "file": "assets/app-208fb942.css",
     "isEntry": true,
     "src": "resources/css/app.css"
   },

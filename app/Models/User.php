@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
@@ -26,7 +27,7 @@ use Spatie\Activitylog\LogOptions;
  */
 class User extends Authenticatable
 {
-    use HasApiTokens, HasRoles, Notifiable, LogsActivity;
+    use HasApiTokens, HasRoles, Notifiable, LogsActivity, SoftDeletes;
 
     protected $fillable = [
         'first_name',

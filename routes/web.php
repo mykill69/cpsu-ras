@@ -56,7 +56,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/{user}/edit', [UserManagementController::class, 'edit'])->name('edit');
         Route::put('/{user}', [UserManagementController::class, 'update'])->name('update');
         Route::delete('/{user}', [UserManagementController::class, 'destroy'])->name('destroy');
-        Route::post('/user/{user}/toggle-status', [UserManagementController::class, 'toggleStatus'])->name('toggle-status');
+        Route::post('/{user}/toggle-status', [UserManagementController::class, 'toggleStatus'])->name('toggle-status');
+        Route::post('/{user}/restore', [UserManagementController::class, 'restore'])->withTrashed()->name('restore');
     });
 
     // Backup & Sync
