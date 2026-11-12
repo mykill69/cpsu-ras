@@ -1,6 +1,6 @@
 {
-  "_pdf.min-b04b09d5.js": {
-    "file": "assets/pdf.min-b04b09d5.js",
+  "_pdf.min-8ff6a6ee.js": {
+    "file": "assets/pdf.min-8ff6a6ee.js",
     "imports": [
       "resources/js/app.js"
     ],
@@ -347,16 +347,16 @@
     "src": "node_modules/pdfjs-dist/build/pdf.worker.min.js?url"
   },
   "resources/css/app.css": {
-    "file": "assets/app-7168d611.css",
+    "file": "assets/app-b7ebac49.css",
     "isEntry": true,
     "src": "resources/css/app.css"
   },
   "resources/js/app.js": {
     "dynamicImports": [
-      "_pdf.min-b04b09d5.js",
+      "_pdf.min-8ff6a6ee.js",
       "node_modules/pdfjs-dist/build/pdf.worker.min.js?url"
     ],
-    "file": "assets/app-17b8220d.js",
+    "file": "assets/app-307c42f4.js",
     "isEntry": true,
     "src": "resources/js/app.js"
   }

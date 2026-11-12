@@ -18,18 +18,31 @@ class BackupController extends Controller
         $this->googleDrive = app(GoogleDriveService::class);
     }
 
-    public function index()
+    public function index(Request $request)
     {
-        $files = File::with(['uploader', 'folder'])
-            ->where('status', '!=', 'synced')
-            ->latest()
-            ->paginate(20);
+        if ($redirect = $this->rememberListState($request, 'index')) {
+            return $redirect;
+        }
+
+        [$files, $sort, $direction, $search] = $this->fileList(
+            'index',
+            $request,
+            File::where('status', '!=', 'synced'),
+            ['name' => 'original_name', 'size' => 'size', 'type' => 'extension', 'uploaded' => 'created_at'],
+            'uploaded'
+        );
+
+        if ($request->ajax()) {
+            return view('backup.partials.pending-table', compact('files', 'sort', 'direction', 'search'));
+        }
+
+        $pendingTotal = File::where('status', '!=', 'synced')->count();
 
         $totalFiles = File::count();
         $totalSize = File::sum('size');
         $syncedCount = File::where('status', 'synced')->count();
 
-        return view('backup.index', compact('files', 'totalFiles', 'totalSize', 'syncedCount'));
+        return view('backup.index', compact('files', 'totalFiles', 'totalSize', 'syncedCount', 'sort', 'direction', 'search', 'pendingTotal'));
     }
 
     public function sync(File $file)
@@ -186,13 +199,89 @@ class BackupController extends Controller
     ]);
 }
 
-    public function synced()
-{
-    $files = File::with(['uploader', 'folder'])
-        ->where('status', 'synced')
-        ->latest()
-        ->paginate(20);
+    public function synced(Request $request)
+    {
+        if ($redirect = $this->rememberListState($request, 'synced')) {
+            return $redirect;
+        }
 
-    return view('backup.synced', compact('files'));
-}
+        [$files, $sort, $direction, $search] = $this->fileList(
+            'synced',
+            $request,
+            File::where('status', 'synced'),
+            ['name' => 'original_name', 'size' => 'size', 'type' => 'extension', 'synced' => 'updated_at'],
+            'synced'
+        );
+
+        if ($request->ajax()) {
+            return view('backup.partials.synced-table', compact('files', 'sort', 'direction', 'search'));
+        }
+
+        $total = File::where('status', 'synced')->count();
+
+        return view('backup.synced', compact('files', 'sort', 'direction', 'search', 'total'));
+    }
+
+    /**
+     * Search and sort choices arrive as ?q= / ?sort= / ?direction=, get saved in
+     * the session. A normal page load is then redirected back to the clean URL
+     * (/backup, /backup/synced); background requests carry on (returns null).
+     */
+    private function rememberListState(Request $request, string $list): ?\Illuminate\Http\RedirectResponse
+    {
+        if (! $request->hasAny(['q', 'sort', 'direction', 'reset'])) {
+            return null;
+        }
+
+        $key = "backup.list.$list";
+
+        if ($request->has('reset')) {
+            session()->forget($key);
+        } else {
+            $state = session($key, []);
+            foreach (['q', 'sort', 'direction'] as $field) {
+                if ($request->has($field)) {
+                    $state[$field] = mb_substr(trim((string) $request->query($field)), 0, 100);
+                }
+            }
+            session([$key => $state]);
+        }
+
+        // Background (AJAX) requests just get the refreshed table back; a normal
+        // page load is sent to page 1 of the clean URL.
+        return $request->ajax() ? null : redirect()->to($request->url());
+    }
+
+    /**
+     * Search + sort + paginate a file list using the choices saved in the
+     * session for this list. Only whitelisted columns can be sorted.
+     *
+     * @return array{0: \Illuminate\Pagination\LengthAwarePaginator, 1: string, 2: string, 3: string}
+     */
+    private function fileList(string $list, Request $request, $query, array $sortable, string $defaultSort): array
+    {
+        $state = session("backup.list.$list", []);
+
+        $sort = array_key_exists($state['sort'] ?? '', $sortable) ? $state['sort'] : $defaultSort;
+        $direction = ($state['direction'] ?? '') === 'asc' ? 'asc' : 'desc';
+        $search = (string) ($state['q'] ?? '');
+
+        $files = $query->with(['uploader', 'folder'])
+            ->when($search !== '', function ($query) use ($search) {
+                $like = '%' . addcslashes($search, '%_\\') . '%';
+                $query->where(function ($q) use ($like) {
+                    $q->where('original_name', 'like', $like)
+                        ->orWhere('extension', 'like', $like)
+                        ->orWhereHas('uploader', fn ($u) => $u
+                            ->where('first_name', 'like', $like)
+                            ->orWhere('last_name', 'like', $like)
+                            ->orWhereRaw("CONCAT(first_name, ' ', last_name) LIKE ?", [$like]));
+                });
+            })
+            ->orderBy($sortable[$sort], $direction)
+            ->orderBy('id', $direction)
+            ->paginate(20);
+
+        return [$files, $sort, $direction, $search];
+    }
 }
