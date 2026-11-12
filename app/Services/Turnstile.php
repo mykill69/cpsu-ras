@@ -26,7 +26,7 @@ class Turnstile
     }
 
     /** Ask Cloudflare whether the token from the widget is valid. Fails closed. */
-    public static function verify(?string $token, ?string $ip = null): bool
+    public static function verify(?string $token, ?string $ip = null, ?string $expectedHost = null): bool
     {
         if (blank($token) || strlen($token) > 2048) {
             return false;
@@ -56,16 +56,17 @@ class Turnstile
             return false;
         }
 
-        // A valid token must also have been issued for this form and this site,
-        // so a token solved on another page or domain can't be replayed here.
+        // A valid token must also have been issued for this form and for the host
+        // the login page was served from, so a token solved on another page or
+        // domain can't be replayed here. (Cloudflare itself only issues tokens for
+        // the hostnames listed on the widget.)
         if (! self::usingTestKeys()) {
-            $expectedHost = parse_url(config('app.url'), PHP_URL_HOST);
-
             if ($response->json('action') !== 'login'
                 || ($expectedHost && strcasecmp((string) $response->json('hostname'), $expectedHost) !== 0)) {
                 Log::warning('Turnstile token for wrong action/host', [
                     'action' => $response->json('action'),
                     'hostname' => $response->json('hostname'),
+                    'expected_host' => $expectedHost,
                 ]);
 
                 return false;

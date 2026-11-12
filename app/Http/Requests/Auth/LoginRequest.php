@@ -64,7 +64,7 @@ class LoginRequest extends FormRequest
             ])->redirectTo(route('login'));
         }
 
-        if (Turnstile::enabled() && ! Turnstile::verify($this->input('cf-turnstile-response'), $this->ip())) {
+        if (Turnstile::enabled() && ! Turnstile::verify($this->input('cf-turnstile-response'), $this->ip(), $this->getHost())) {
             RateLimiter::hit($this->throttleKey());
 
             throw ValidationException::withMessages([
